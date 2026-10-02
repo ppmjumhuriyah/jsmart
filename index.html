@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>J-SMART | PPM Al-Jumhuriyah</title>
+<meta name="description" content="Absensi & monitoring guru PPM Al-Jumhuriyah">
+<meta name="theme-color" content="#075f3d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+  // ============ PENGATURAN: link aplikasi J-SMART (berakhiran /exec) ============
+  const JSMART_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
+</script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,Arial,sans-serif;color:#fff;background:#053f29}
+  .bg{position:fixed;inset:0;background:url(foto-pesantren.jpg) center/cover no-repeat}
+  .shade{position:fixed;inset:0;background:linear-gradient(180deg,#053f2999 0%,#075f3de6 55%,#032a1b 100%)}
+  main{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 20px}
+  .logo{width:150px;height:150px;filter:drop-shadow(0 10px 24px #0008);animation:in .7s ease both}
+  h1{font-size:34px;letter-spacing:3px;margin:18px 0 2px}
+  .inst{font-weight:800;font-size:16px}
+  .slogan{font-size:12px;font-style:italic;color:#f8e9aa;margin-top:10px;line-height:1.6}
+  .btn{display:block;width:100%;max-width:320px;margin:12px auto 0;padding:15px;border:0;border-radius:14px;font:inherit;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
+  .btn.main{background:#c9a227;color:#1b1b1b;margin-top:28px}
+  .btn.sec{background:#ffffff22;color:#fff;border:1px solid #ffffff55}
+  .hint{max-width:340px;font-size:12px;line-height:1.6;color:#e8f3ee;margin-top:18px;background:#00000033;border-radius:12px;padding:12px 14px;text-align:left}
+  .hint b{color:#f8e9aa}
+  .loader{width:120px;height:4px;border-radius:4px;background:#ffffff33;margin:26px auto 0;overflow:hidden}
+  .loader span{display:block;width:40%;height:100%;background:#c9a227;border-radius:4px;animation:load 1.1s ease-in-out infinite}
+  .hidden{display:none!important}
+  @keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+  @keyframes in{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="bg"></div><div class="shade"></div>
+<main>
+  <img class="logo" src="logo.png" alt="Logo PPM Al-Jumhuriyah">
+  <h1>J-SMART</h1>
+  <div class="inst">PPM Al-Jumhuriyah</div>
+  <div class="slogan">Lembur Ilmu, Kancah Ibadah,<br>Majlis Disiplin Wahana Perjuangan</div>
+
+  <!-- Saat dibuka dari ikon aplikasi: langsung masuk -->
+  <div id="launching" class="hidden"><div class="loader"><span></span></div></div>
+
+  <!-- Saat dibuka dari browser: tawarkan pemasangan -->
+  <div id="landing">
+    <a class="btn main" id="openBtn" href="#">Buka J-SMART</a>
+    <button class="btn sec hidden" id="installBtn">📲 Pasang di layar HP</button>
+    <div class="hint" id="hint">
+      <b>Cara memasang ikon J-SMART:</b><br>
+      Chrome: ketuk <b>⋮</b> (kanan atas) → <b>Instal aplikasi</b> / <b>Tambahkan ke layar utama</b>.<br>
+      Samsung Internet: ketuk <b>☰</b> → <b>Tambahkan halaman ke</b> → <b>Layar Beranda</b>.<br><br>
+      Muncul "Maaf, tidak dapat membuka file"? HP Anda login lebih dari satu akun Google.
+      Buka J-SMART lewat <b>Samsung Internet</b> atau <b>Tab Samaran</b>.
+    </div>
+  </div>
+</main>
+<script>
+  const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(JSMART_URL);
+  const openBtn = document.getElementById('openBtn');
+  openBtn.href = ok ? JSMART_URL : '#';
+  if (!ok) openBtn.textContent = 'Link aplikasi belum diisi';
+
+  const isApp = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone || /[?&]app=1/.test(location.search);
+  if (isApp && ok) {
+    document.getElementById('landing').classList.add('hidden');
+    document.getElementById('launching').classList.remove('hidden');
+    setTimeout(() => location.replace(JSMART_URL), 1500); // tampilkan layar pembuka 1,5 detik
+  }
+
+  let deferred;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferred = e;
+    document.getElementById('installBtn').classList.remove('hidden');
+  });
+  document.getElementById('installBtn').onclick = async () => {
+    if (!deferred) return;
+    deferred.prompt(); await deferred.userChoice; deferred = null;
+    document.getElementById('installBtn').classList.add('hidden');
+  };
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
