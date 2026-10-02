@@ -208,29 +208,52 @@ const ENDPOINTS = [
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
 
-async function call(fn, ...args) {
-  if (ENDPOINTS.indexOf(fn) === -1) throw new Error('Endpoint tidak dikenal: ' + fn);
-  let res;
-  try {
-    res = await fetch(API_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      credentials: 'omit',
-      headers: {'Content-Type': 'text/plain;charset=utf-8'},
-      body: JSON.stringify({fn: fn, args: args})
-    });
-  } catch (e) {
-    throw new Error('Tidak dapat terhubung ke server. Periksa koneksi internet.');
-  }
-  let j;
-  try { j = await res.json(); }
-  catch (e) { throw new Error('Server belum siap (Api.gs belum dipasang / belum Deploy versi baru).'); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const newRid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+
+async function postJson(body) {
+  const res = await fetch(API_URL, {
+    method: 'POST', redirect: 'follow', credentials: 'omit',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+function handleReply(j) {
   if (!j.ok) {
     const msg = j.error || 'Terjadi kesalahan.';
     if (/Sesi tidak valid/i.test(msg) && TOKEN) forceLogout('Sesi berakhir. Silakan login kembali.');
     throw new Error(msg);
   }
   return j.data;
+}
+
+async function call(fn, ...args) {
+  if (ENDPOINTS.indexOf(fn) === -1) throw new Error('Endpoint tidak dikenal: ' + fn);
+  const rid = newRid();
+  const body = {fn: fn, args: args, rid: rid};
+  const besar = JSON.stringify(body).length > 20000; // berisi foto
+
+  if (!besar) {
+    try { return handleReply(await postJson(body)); }
+    catch (e) { if (!(e instanceof TypeError) && !/JSON/i.test(e.message)) throw e; } // lanjut tanya hasil
+  } else {
+    // Kirim foto tanpa menunggu balasan langsung (balasan besar sering tidak sampai di HP),
+    // lalu tanyakan hasilnya ke server.
+    try {
+      await fetch(API_URL, {method: 'POST', mode: 'no-cors', credentials: 'omit',
+        headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(body)});
+    } catch (e) { /* tetap periksa hasil */ }
+  }
+
+  for (let i = 0; i < 10; i++) {
+    await sleep(i === 0 ? 400 : 1500);
+    let r;
+    try { r = await postJson({fn: 'getResult', args: [rid]}); } catch (e) { continue; }
+    if (r && r.ok && r.data && r.data.found) return handleReply(r.data.result);
+  }
+  throw new Error('Tidak dapat terhubung ke server. Periksa koneksi internet, lalu coba lagi.');
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
