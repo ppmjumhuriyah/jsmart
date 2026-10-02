@@ -1,88 +1,721 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>J-SMART | PPM Al-Jumhuriyah</title>
-<meta name="description" content="Absensi & monitoring guru PPM Al-Jumhuriyah">
-<meta name="theme-color" content="#075f3d">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script>
-  // ============ PENGATURAN: link aplikasi J-SMART (berakhiran /exec) ============
-  const JSMART_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
-</script>
-<style>
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;font-family:Inter,Arial,sans-serif;color:#fff;background:#053f29}
-  .bg{position:fixed;inset:0;background:url(foto-pesantren.jpg) center/cover no-repeat}
-  .shade{position:fixed;inset:0;background:linear-gradient(180deg,#053f2999 0%,#075f3de6 55%,#032a1b 100%)}
-  main{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 20px}
-  .logo{width:150px;height:150px;filter:drop-shadow(0 10px 24px #0008);animation:in .7s ease both}
-  h1{font-size:34px;letter-spacing:3px;margin:18px 0 2px}
-  .inst{font-weight:800;font-size:16px}
-  .slogan{font-size:12px;font-style:italic;color:#f8e9aa;margin-top:10px;line-height:1.6}
-  .btn{display:block;width:100%;max-width:320px;margin:12px auto 0;padding:15px;border:0;border-radius:14px;font:inherit;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
-  .btn.main{background:#c9a227;color:#1b1b1b;margin-top:28px}
-  .btn.sec{background:#ffffff22;color:#fff;border:1px solid #ffffff55}
-  .hint{max-width:340px;font-size:12px;line-height:1.6;color:#e8f3ee;margin-top:18px;background:#00000033;border-radius:12px;padding:12px 14px;text-align:left}
-  .hint b{color:#f8e9aa}
-  .loader{width:120px;height:4px;border-radius:4px;background:#ffffff33;margin:26px auto 0;overflow:hidden}
-  .loader span{display:block;width:40%;height:100%;background:#c9a227;border-radius:4px;animation:load 1.1s ease-in-out infinite}
-  .hidden{display:none!important}
-  @keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
-  @keyframes in{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+  <meta charset="utf-8">
+  <meta name="theme-color" content="#075f3d">
+  <meta name="description" content="Absensi & monitoring guru PPM Al-Jumhuriyah">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>J-SMART | PPM Al-Jumhuriyah</title>
+  <style>
+:root{
+  --green:#0b7d4f; --green2:#075f3d; --gold:#c9a227; --ink:#17231f;
+  --muted:#6c7773; --bg:#f4f7f5; --white:#fff; --danger:#b42318;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:linear-gradient(180deg,#eef7f2,#f8faf9);font-family:Inter,Arial,sans-serif;color:var(--ink)}
+body{min-height:100vh}
+.view{max-width:560px;margin:auto;min-height:100vh;padding:18px}
+.hidden{display:none!important}
+.brand-card{position:relative;overflow:hidden;padding:30px 20px 22px;text-align:center;background-color:var(--green2);color:white;border-radius:0 0 28px 28px;box-shadow:0 14px 35px #075f3d2a}
+.brand-card>*{position:relative}
+.brand-card .brand-shade{position:absolute;inset:0;background:linear-gradient(180deg,#075f3dcc 0%,#075f3dee 60%,#053f29 100%)}
+.brand-mark{width:96px;height:96px;margin:0 auto 12px;filter:drop-shadow(0 6px 14px #0006)}
+.top-logo{width:42px;height:42px;flex:none}
+.topbar h1{line-height:1.1}
+/* Layar pembuka */
+.splash{position:fixed;inset:0;z-index:999;background-color:#053f29;display:flex;align-items:center;justify-content:center;transition:opacity .5s ease,visibility .5s}
+.splash.hide{opacity:0;visibility:hidden}
+.splash-shade{position:absolute;inset:0;background:linear-gradient(180deg,#053f2999 0%,#075f3de6 55%,#032a1b 100%)}
+.splash-inner{position:relative;text-align:center;color:#fff;padding:24px;animation:splashIn .7s ease both}
+.splash-logo{width:150px;height:150px;margin:0 auto 18px;filter:drop-shadow(0 10px 24px #0008)}
+.splash-title{font-size:34px;font-weight:900;letter-spacing:3px}
+.splash-inst{font-size:16px;font-weight:800;margin-top:4px}
+.splash-slogan{font-size:12px;font-style:italic;color:#f8e9aa;margin-top:12px;line-height:1.6}
+.splash-loader{width:120px;height:4px;border-radius:4px;background:#ffffff33;margin:26px auto 0;overflow:hidden}
+.splash-loader span{display:block;width:40%;height:100%;background:var(--gold);border-radius:4px;animation:load 1.1s ease-in-out infinite}
+@keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+@keyframes splashIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.brand-title{font-size:30px;font-weight:900;letter-spacing:2px}
+.brand-sub{font-size:11px;line-height:1.5;opacity:.9;margin:6px 20px}
+.institution{font-weight:800;margin-top:8px}
+.slogan{font-size:11px;font-style:italic;line-height:1.5;margin-top:12px;color:#f8e9aa}
+.card{background:#fff;border-radius:22px;padding:20px;box-shadow:0 10px 30px #17231f12;margin-top:16px}
+label{display:block;font-size:12px;font-weight:700;margin:12px 0 6px}
+input,select,textarea{width:100%;border:1px solid #d9e2de;border-radius:14px;padding:13px;font-size:14px;background:#fff}
+button{font:inherit;border:0;cursor:pointer}
+.primary{width:100%;margin-top:18px;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;font-weight:800}
+.msg{font-size:12px;margin-top:10px;color:var(--danger)}
+.topbar{display:flex;align-items:center;gap:12px;padding:8px 2px 18px}
+.topbar h1{margin:0;font-size:20px}
+.small{font-size:11px;color:var(--muted)}
+.icon-btn{width:42px;height:42px;border-radius:14px;background:#fff;box-shadow:0 6px 18px #17231f12}
+.hero h2{margin:4px 0 2px;font-size:22px}
+.server-time{font-size:12px;color:var(--green2);font-weight:700}
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.menu-card{background:#fff;border-radius:20px;padding:18px 14px;text-align:left;box-shadow:0 8px 24px #17231f10;border:1px solid #edf1ef}
+.menu-card span{display:block;font-size:28px;margin-bottom:10px}
+.menu-card b{display:block;font-size:14px}
+.menu-card small{display:block;color:var(--muted);margin-top:4px;font-size:11px}
+.slogan-bottom{text-align:center;font-size:10px;color:#77817e;margin:22px 8px}
+.action-card{background:#fff;border-radius:22px;padding:18px;box-shadow:0 10px 28px #17231f12;margin-top:12px}
+.action-card h3{margin:0 0 12px}
+.camera{background:#101513;border-radius:20px;overflow:hidden;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;position:relative}
+.camera video,.camera img{width:100%;height:100%;object-fit:cover}
+.camera .placeholder{color:#fff8;text-align:center;padding:20px}
+.camera-controls{display:flex;gap:10px;margin-top:12px}
+.secondary{flex:1;padding:13px;border-radius:14px;background:#edf4f0;color:var(--green2);font-weight:800}
+.capture{flex:1;padding:13px;border-radius:14px;background:var(--green);color:#fff;font-weight:800}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.badge{display:inline-block;padding:6px 9px;border-radius:999px;background:#eaf5f0;color:var(--green2);font-size:10px;font-weight:800}
+.primary:disabled{opacity:.6;cursor:wait}
+.msg.ok{color:var(--green2);font-weight:700}
+.hist-item,.appr-item{border:1px solid #edf1ef;border-radius:16px;padding:12px 14px;margin-top:10px;background:#fff}
+.hist-item .top,.appr-item .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.hist-item b,.appr-item b{font-size:13px}
+.hist-item .meta,.appr-item .meta{font-size:11px;color:var(--muted);margin-top:4px}
+.hist-item a,.appr-item a{font-size:11px;color:var(--green);font-weight:700;margin-right:10px}
+.status{font-size:10px;font-weight:800;padding:4px 8px;border-radius:999px;background:#eaf5f0;color:var(--green2);white-space:nowrap}
+.status.DIAJUKAN{background:#fff5d6;color:#8a6200}
+.status.DITOLAK{background:#fde8e6;color:var(--danger)}
+.filter-row{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
+.filter-row button{padding:7px 12px;border-radius:999px;background:#edf4f0;color:var(--green2);font-size:11px;font-weight:800;white-space:nowrap}
+.filter-row button.on{background:var(--green);color:#fff}
+.quota{font-size:11px;margin-top:8px;color:var(--muted)}
+.quota .full{color:var(--danger);font-weight:800}
+.danger{flex:1;padding:11px;border-radius:12px;background:#fde8e6;color:var(--danger);font-weight:800}
+.approve{flex:1;padding:11px;border-radius:12px;background:var(--green);color:#fff;font-weight:800}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 8px}
+@media(max-width:340px){.menu-grid{grid-template-columns:1fr}}@media(max-width:400px){.view{padding:12px}.menu-card{padding:14px 12px}}
+</style>
+
+  <style>
+.img-logo{background:url(logo.png) center/contain no-repeat}
+.img-foto{background-image:url(foto-pesantren.jpg);background-size:cover;background-position:center}
+.install-bar{display:flex;gap:10px;align-items:center;margin-top:14px;padding:12px 14px;border-radius:16px;background:#fff;box-shadow:0 8px 24px #17231f12;font-size:12px}
+.install-bar b{display:block;font-size:13px}
+.install-bar button{flex:none;padding:10px 14px;border-radius:12px;background:var(--green);color:#fff;font-weight:800}
 </style>
 </head>
 <body>
-<div class="bg"></div><div class="shade"></div>
-<main>
-  <img class="logo" src="logo.png" alt="Logo PPM Al-Jumhuriyah">
-  <h1>J-SMART</h1>
-  <div class="inst">PPM Al-Jumhuriyah</div>
-  <div class="slogan">Lembur Ilmu, Kancah Ibadah,<br>Majlis Disiplin Wahana Perjuangan</div>
-
-  <!-- Saat dibuka dari ikon aplikasi: langsung masuk -->
-  <div id="launching" class="hidden"><div class="loader"><span></span></div></div>
-
-  <!-- Saat dibuka dari browser: tawarkan pemasangan -->
-  <div id="landing">
-    <a class="btn main" id="openBtn" href="#">Buka J-SMART</a>
-    <button class="btn sec hidden" id="installBtn">📲 Pasang di layar HP</button>
-    <div class="hint" id="hint">
-      <b>Cara memasang ikon J-SMART:</b><br>
-      Chrome: ketuk <b>⋮</b> (kanan atas) → <b>Instal aplikasi</b> / <b>Tambahkan ke layar utama</b>.<br>
-      Samsung Internet: ketuk <b>☰</b> → <b>Tambahkan halaman ke</b> → <b>Layar Beranda</b>.<br><br>
-      Muncul "Maaf, tidak dapat membuka file"? HP Anda login lebih dari satu akun Google.
-      Buka J-SMART lewat <b>Samsung Internet</b> atau <b>Tab Samaran</b>.
+  <!-- Layar pembuka: foto pesantren + logo -->
+  <div id="splash" class="splash img-foto">
+    <div class="splash-shade"></div>
+    <div class="splash-inner">
+      <div class="splash-logo img-logo" role="img" aria-label="Logo PPM Al-Jumhuriyah"></div>
+      <div class="splash-title">J-SMART</div>
+      <div class="splash-inst">PPM Al-Jumhuriyah</div>
+      <div class="splash-slogan">Lembur Ilmu, Kancah Ibadah,<br>Majlis Disiplin Wahana Perjuangan</div>
+      <div class="splash-loader"><span></span></div>
     </div>
   </div>
-</main>
-<script>
-  const ok = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(JSMART_URL);
-  const openBtn = document.getElementById('openBtn');
-  openBtn.href = ok ? JSMART_URL : '#';
-  if (!ok) openBtn.textContent = 'Link aplikasi belum diisi';
 
-  const isApp = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone || /[?&]app=1/.test(location.search);
-  if (isApp && ok) {
-    document.getElementById('landing').classList.add('hidden');
-    document.getElementById('launching').classList.remove('hidden');
-    setTimeout(() => location.replace(JSMART_URL), 1500); // tampilkan layar pembuka 1,5 detik
+  <div id="app">
+    <section id="loginView" class="view">
+      <div class="brand-card img-foto">
+        <div class="brand-shade"></div>
+        <div class="brand-mark img-logo" role="img" aria-label="Logo PPM Al-Jumhuriyah"></div>
+        <div class="brand-title">J-SMART</div>
+        <div class="brand-sub">Jumhuriyah Staff Monitoring &amp; Attendance Record Technology</div>
+        <div class="institution">PPM Al-Jumhuriyah</div>
+        <div class="slogan">“Lembur Ilmu, Kancah Ibadah, Majlis Disiplin Wahana Perjuangan”</div>
+      </div>
+      <form id="loginForm" class="card">
+        <label>Username</label>
+        <input id="username" autocomplete="username" required>
+        <label>Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button class="primary" type="submit">MASUK</button>
+        <div id="loginMsg" class="msg"></div>
+      </form>
+      <div id="installBar" class="install-bar hidden">
+        <div style="flex:1"><b>Pasang J-SMART di HP</b>Ikon logo pesantren di layar utama</div>
+        <button type="button" id="installBtn">Pasang</button>
+      </div>
+    </section>
+
+    <section id="homeView" class="view hidden">
+      <header class="topbar">
+        <div class="top-logo img-logo" role="img" aria-label="Logo"></div>
+        <div style="flex:1">
+          <div class="small">PPM Al-Jumhuriyah</div>
+          <h1>J-SMART</h1>
+        </div>
+        <button id="logoutBtn" class="icon-btn">↪</button>
+      </header>
+
+      <div class="hero card">
+        <div class="small">Selamat datang</div>
+        <h2 id="guruName">-</h2>
+        <div id="roleName" class="small">-</div>
+        <div id="serverTime" class="server-time">-</div>
+      </div>
+
+      <div class="menu-grid">
+        <button data-module="mengajar" class="menu-card"><span>📚</span><b>Absen Mengajar</b><small>Foto langsung</small></button>
+        <button data-module="inval" class="menu-card"><span>🔄</span><b>INVAL</b><small>Guru pengganti</small></button>
+        <button data-module="piket" class="menu-card"><span>🛡️</span><b>Guru Piket</b><small>Datang &amp; selesai</small></button>
+        <button data-module="apel" class="menu-card"><span>⏰</span><b>Apel Pagi</b><small id="apelHint">Ditutup 07:15 WIB</small></button>
+        <button data-module="ibadah" class="menu-card"><span>🕌</span><b>Ibadah</b><small>7 aktivitas</small></button>
+        <button data-module="kegiatanPagi" class="menu-card"><span>🌅</span><b>Kegiatan Pagi</b><small>Upacara &amp; Literasi Senin</small></button>
+        <button data-module="bimbingan" class="menu-card"><span>📖</span><b>Bimbingan</b><small>Program pesantren</small></button>
+        <button data-module="cuti" class="menu-card"><span>📝</span><b>Cuti / Izin</b><small>Surat otomatis</small></button>
+        <button data-module="riwayat" class="menu-card"><span>📋</span><b>Riwayat</b><small>Aktivitas saya</small></button>
+        <button data-module="persetujuan" id="menuPersetujuan" class="menu-card hidden"><span>✅</span><b>Persetujuan</b><small id="pendingHint">Cuti/Izin &amp; INVAL</small></button>
+      </div>
+      <div class="slogan-bottom">Lembur Ilmu • Kancah Ibadah • Majlis Disiplin • Wahana Perjuangan</div>
+    </section>
+
+    <section id="moduleView" class="view hidden">
+      <header class="topbar">
+        <button id="backBtn" class="icon-btn">←</button>
+        <div>
+          <div class="small">J-SMART</div>
+          <h1 id="moduleTitle">Aktivitas</h1>
+        </div>
+      </header>
+      <div id="moduleContent"></div>
+    </section>
+  </div>
+  <script>
+/* J-SMART v1.4 — frontend */
+let TOKEN = null;
+let PROFILE = null;
+let CAMERA_STREAM = null;
+let BOOTSTRAP = null;
+let CLOCK_TIMER = null;
+const PHOTOS = {};
+
+const $ = id => document.getElementById(id);
+
+// Simpan sesi di HP agar tidak perlu login ulang setiap membuka aplikasi (berlaku ±6 jam).
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+// Daftar endpoint server yang boleh dipanggil (dispatch eksplisit, bukan runner[fn] dinamis bebas).
+const ENDPOINTS = [
+  'getBootstrap','getServerTime','login','getMyProfile','logout',
+  'getGuruForInval','getAssignmentsForGuru',
+  'saveTeachingAttendance','saveInval','savePiketAttendance','saveGenericActivity',
+  'getMyHistory','getLeaveQuota','saveLeaveRequest',
+  'getPendingApprovals','decideApproval','ping'
+];
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
+
+async function call(fn, ...args) {
+  if (ENDPOINTS.indexOf(fn) === -1) throw new Error('Endpoint tidak dikenal: ' + fn);
+  let res;
+  try {
+    res = await fetch(API_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      credentials: 'omit',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({fn: fn, args: args})
+    });
+  } catch (e) {
+    throw new Error('Tidak dapat terhubung ke server. Periksa koneksi internet.');
   }
+  let j;
+  try { j = await res.json(); }
+  catch (e) { throw new Error('Server belum siap (Api.gs belum dipasang / belum Deploy versi baru).'); }
+  if (!j.ok) {
+    const msg = j.error || 'Terjadi kesalahan.';
+    if (/Sesi tidak valid/i.test(msg) && TOKEN) forceLogout('Sesi berakhir. Silakan login kembali.');
+    throw new Error(msg);
+  }
+  return j.data;
+}
 
-  let deferred;
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault(); deferred = e;
-    document.getElementById('installBtn').classList.remove('hidden');
-  });
-  document.getElementById('installBtn').onclick = async () => {
-    if (!deferred) return;
-    deferred.prompt(); await deferred.userChoice; deferred = null;
-    document.getElementById('installBtn').classList.add('hidden');
+document.addEventListener('DOMContentLoaded', async () => {
+  $('loginForm').addEventListener('submit', onLogin);
+  $('logoutBtn').addEventListener('click', onLogout);
+  $('backBtn').addEventListener('click', goHome);
+  document.querySelectorAll('[data-module]').forEach(b => b.addEventListener('click', () => openModule(b.dataset.module)));
+  const splashStart = Date.now();
+  const hideSplash = () => {
+    const wait = Math.max(0, 1800 - (Date.now() - splashStart)); // tampil minimal 1,8 detik
+    setTimeout(() => { const el = $('splash'); if (el) { el.classList.add('hide'); setTimeout(() => el.remove(), 600); } }, wait);
   };
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  setTimeout(hideSplash, 8000); // pengaman: jangan pernah tertahan di layar pembuka
+  const lastUser = store.get('jsmart_user');
+  if (lastUser) $('username').value = lastUser;
+  try {
+    BOOTSTRAP = await call('getBootstrap');
+    if (BOOTSTRAP?.config?.apelBatas) $('apelHint').textContent = 'Ditutup ' + BOOTSTRAP.config.apelBatas + ' WIB';
+    const saved = store.get('jsmart_token');
+    if (saved) {
+      try { TOKEN = saved; await enterHome(); } catch (e) { TOKEN = null; store.del('jsmart_token'); }
+    }
+  } catch (e) {
+    $('loginMsg').textContent = 'Server belum siap: ' + e.message;
+  }
+  hideSplash();
+});
+
+/* ---------------- helper UI ---------------- */
+
+function setBusy(btn, busy, text) {
+  if (!btn) return;
+  if (busy) { btn.dataset.label = btn.textContent; btn.textContent = text || 'Menyimpan...'; btn.disabled = true; }
+  else { btn.textContent = btn.dataset.label || btn.textContent; btn.disabled = false; }
+}
+
+function showMsg(id, text, ok) {
+  const el = $(id); if (!el) return;
+  el.textContent = text; el.classList.toggle('ok', !!ok);
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+/** Satu pola simpan untuk semua modul foto: ambil foto → kirim → tampilkan hasil. */
+function bindSave(camId, btnId, msgId, fn, buildPayload) {
+  $(btnId).onclick = async () => {
+    const imageData = PHOTOS[camId] || capturePhoto(camId);
+    if (!imageData) return;
+    let payload;
+    try { payload = buildPayload(imageData); } catch (e) { showMsg(msgId, e.message); return; }
+    if (!payload) return;
+    setBusy($(btnId), true);
+    showMsg(msgId, 'Mengunggah foto & menyimpan...', true);
+    try {
+      const r = await call(fn, TOKEN, payload);
+      showMsg(msgId, '✔ Berhasil tersimpan. ' + (r.time || ''), true);
+      stopCamera();
+      delete PHOTOS[camId];
+      $(btnId).disabled = true;
+      $(btnId).textContent = 'Tersimpan ✔';
+      return r;
+    } catch (e) {
+      showMsg(msgId, e.message);
+      setBusy($(btnId), false);
+    }
+  };
+}
+
+/* ---------------- login / logout ---------------- */
+
+async function onLogin(ev) {
+  ev.preventDefault();
+  const btn = ev.submitter || document.querySelector('#loginForm button');
+  setBusy(btn, true, 'Memeriksa...');
+  showMsg('loginMsg', '');
+  try {
+    const session = await call('login', $('username').value.trim(), $('password').value);
+    TOKEN = session.token;
+    store.set('jsmart_user', $('username').value.trim());
+    await enterHome();
+    store.set('jsmart_token', TOKEN);
+    $('password').value = '';
+  } catch (e) {
+    showMsg('loginMsg', e.message);
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+async function enterHome() {
+  PROFILE = await call('getMyProfile', TOKEN);
+  $('guruName').textContent = PROFILE.guru.NAMA_GURU;
+  $('roleName').textContent = String(PROFILE.session.role || '').replace(/_/g, ' ');
+  $('menuPersetujuan').classList.toggle('hidden', !PROFILE.isApprover);
+  $('loginView').classList.add('hidden');
+  $('homeView').classList.remove('hidden');
+  startClock();
+  if (PROFILE.isApprover) refreshPendingHint();
+}
+
+async function onLogout() {
+  const t = TOKEN;
+  forceLogout('');
+  if (t) { try { await call('logout', t); } catch (e) {} }
+}
+
+function forceLogout(message) {
+  store.del('jsmart_token');
+  stopCamera();
+  if (CLOCK_TIMER) { clearInterval(CLOCK_TIMER); CLOCK_TIMER = null; }
+  TOKEN = null; PROFILE = null;
+  $('homeView').classList.add('hidden');
+  $('moduleView').classList.add('hidden');
+  $('loginView').classList.remove('hidden');
+  showMsg('loginMsg', message || '');
+}
+
+function startClock() {
+  $('serverTime').textContent = 'Waktu server: ' + (BOOTSTRAP?.now || '-');
+  if (CLOCK_TIMER) clearInterval(CLOCK_TIMER);
+  const tick = async () => {
+    try { const t = await call('getServerTime'); $('serverTime').textContent = 'Waktu server: ' + t.now; } catch (e) {}
+  };
+  tick();
+  CLOCK_TIMER = setInterval(tick, 30000);
+}
+
+async function refreshPendingHint() {
+  try {
+    const list = await call('getPendingApprovals', TOKEN);
+    $('pendingHint').textContent = list.length ? list.length + ' menunggu keputusan' : 'Tidak ada antrean';
+  } catch (e) {}
+}
+
+/* ---------------- navigasi ---------------- */
+
+function goHome() {
+  stopCamera();
+  $('moduleView').classList.add('hidden');
+  $('homeView').classList.remove('hidden');
+  if (PROFILE?.isApprover) refreshPendingHint();
+}
+
+function openModule(name) {
+  $('homeView').classList.add('hidden');
+  $('moduleView').classList.remove('hidden');
+  const titles = {
+    mengajar: 'Absen Mengajar', inval: 'INVAL / Guru Pengganti', piket: 'Guru Piket',
+    apel: 'Apel Pagi', ibadah: 'Kehadiran Ibadah', kegiatanPagi: 'Kegiatan Pagi',
+    bimbingan: 'Program Bimbingan', cuti: 'Cuti / Izin', riwayat: 'Riwayat Saya', persetujuan: 'Persetujuan'
+  };
+  $('moduleTitle').textContent = titles[name] || 'Aktivitas';
+  const c = $('moduleContent');
+  c.innerHTML = '<div class="empty">Memuat...</div>';
+  const renderers = {
+    mengajar: renderMengajar, inval: renderInval, piket: renderPiket, apel: renderApel,
+    ibadah: renderIbadah, kegiatanPagi: renderKegiatanPagi, bimbingan: renderBimbingan,
+    cuti: renderCuti, riwayat: renderRiwayat, persetujuan: renderPersetujuan
+  };
+  Promise.resolve((renderers[name] || (() => {}))(c)).catch(e => {
+    c.innerHTML = '<div class="action-card"><div class="msg">' + escapeHtml(e.message) + '</div></div>';
+  });
+}
+
+/* ---------------- modul absensi ---------------- */
+
+function renderMengajar(c) {
+  if (!PROFILE.assignments.length) {
+    c.innerHTML = '<div class="action-card"><h3>Belum ada penugasan</h3><p class="small">Anda belum terdaftar mengajar di sheet GURU_MAPEL_KELAS. Hubungi admin.</p></div>';
+    return;
+  }
+  const opts = PROFILE.assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}</option>`).join('');
+  c.innerHTML = `<div class="action-card">
+    <h3>Pilih kelas & mata pelajaran</h3>
+    <div class="badge">Waktu diambil otomatis dari server</div>
+    <select id="teachAssignment" style="margin-top:12px">${opts}</select>
+    ${cameraHTML('teach')}
+    <button class="primary" id="saveTeach">Simpan Absensi</button>
+    <div id="teachMsg" class="msg"></div>
+  </div>`;
+  initCamera('teach');
+  bindSave('teach', 'saveTeach', 'teachMsg', 'saveTeachingAttendance', imageData => {
+    const a = PROFILE.assignments[Number($('teachAssignment').value)];
+    return {classCode: a.classCode, subject: a.subject, imageData, deviceInfo: navigator.userAgent};
+  });
+}
+
+async function renderInval(c) {
+  const gurus = await call('getGuruForInval', TOKEN);
+  const opts = gurus.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+  c.innerHTML = `<div class="action-card">
+    <h3>Guru Pengganti</h3>
+    <label>Guru yang digantikan</label><select id="invalGuru">${opts}</select>
+    <label>Kelas & mata pelajaran</label>
+    <select id="invalAssignment"><option>Memuat...</option></select>
+    <label>Alasan</label><textarea id="invalReason" rows="3" placeholder="Contoh: guru asli sakit"></textarea>
+    ${cameraHTML('inval')}
+    <button class="primary" id="saveInval">Simpan INVAL</button><div id="invalMsg" class="msg"></div>
+  </div>`;
+  let assignments = [];
+  const loadAssignments = async () => {
+    $('invalAssignment').innerHTML = '<option>Memuat...</option>';
+    assignments = await call('getAssignmentsForGuru', TOKEN, $('invalGuru').value);
+    $('invalAssignment').innerHTML = assignments.length
+      ? assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}</option>`).join('')
+      : '<option value="">Guru ini belum punya penugasan</option>';
+  };
+  $('invalGuru').onchange = loadAssignments;
+  await loadAssignments();
+  initCamera('inval');
+  bindSave('inval', 'saveInval', 'invalMsg', 'saveInval', imageData => {
+    const a = assignments[Number($('invalAssignment').value)];
+    if (!a) throw new Error('Pilih kelas & mata pelajaran.');
+    const reason = $('invalReason').value.trim();
+    if (!reason) throw new Error('Alasan wajib diisi.');
+    return {guruAsliId: $('invalGuru').value, classCode: a.classCode, subject: a.subject, reason, imageData};
+  });
+}
+
+function renderPiket(c) {
+  c.innerHTML = `<div class="action-card"><h3>Kehadiran Guru Piket</h3>
+    <select id="piketJenis"><option value="DATANG">Absen Datang</option><option value="SELESAI">Absen Selesai</option></select>
+    ${cameraHTML('piket')}
+    <button class="primary" id="savePiket">Simpan</button><div id="piketMsg" class="msg"></div>
+  </div>`;
+  initCamera('piket');
+  bindSave('piket', 'savePiket', 'piketMsg', 'savePiketAttendance', imageData => ({jenis: $('piketJenis').value, imageData}));
+}
+
+function renderApel(c) {
+  const batas = BOOTSTRAP?.config?.apelBatas || '07:15';
+  c.innerHTML = `<div class="action-card"><h3>Apel Pagi</h3>
+    <div class="badge">Absensi otomatis ditutup pukul ${escapeHtml(batas)} WIB (waktu server)</div>
+    ${cameraHTML('apel')}
+    <button class="primary" id="saveApel">Simpan Apel Pagi</button><div id="apelMsg" class="msg"></div>
+  </div>`;
+  initCamera('apel');
+  bindSave('apel', 'saveApel', 'apelMsg', 'saveGenericActivity', imageData => ({activity: 'Apel Pagi', imageData}));
+}
+
+function renderIbadah(c) {
+  const acts = activitiesOf('IBADAH', ['Tahajud','Subuh','Dhuha','Dzuhur','Ashar','Magrib','Isya']);
+  c.innerHTML = `<div class="action-card"><h3>Pilih ibadah</h3>
+    <select id="ibadahAct">${acts.map(a => `<option>${escapeHtml(a)}</option>`).join('')}</select>
+    ${cameraHTML('ibadah')}
+    <button class="primary" id="saveIbadah">Simpan</button><div id="ibadahMsg" class="msg"></div>
+  </div>`;
+  initCamera('ibadah');
+  bindSave('ibadah', 'saveIbadah', 'ibadahMsg', 'saveGenericActivity', imageData => ({activity: $('ibadahAct').value, imageData}));
+}
+
+function renderKegiatanPagi(c) {
+  c.innerHTML = `<div class="action-card">
+    <h3>Senin: Upacara & Literasi Pagi</h3>
+    <div class="badge">Hanya dapat dicatat pada hari Senin. Waktu menggunakan server.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+      <button type="button" class="secondary" id="chooseUpacara">🇮🇩 Upacara</button>
+      <button type="button" class="secondary" id="chooseLiterasi">📚 Literasi Pagi</button>
+    </div>
+    <input type="hidden" id="pagiAct" value="Upacara">
+    <div id="pagiSelected" class="msg ok">Aktivitas: Upacara</div>
+    ${cameraHTML('pagi')}
+    <button class="primary" id="savePagi">Simpan Kegiatan</button>
+    <div id="pagiMsg" class="msg"></div>
+  </div>`;
+  const setAct = name => { $('pagiAct').value = name; $('pagiSelected').textContent = 'Aktivitas: ' + name; };
+  $('chooseUpacara').onclick = () => setAct('Upacara');
+  $('chooseLiterasi').onclick = () => setAct('Literasi Pagi');
+  initCamera('pagi');
+  bindSave('pagi', 'savePagi', 'pagiMsg', 'saveGenericActivity', imageData => ({activity: $('pagiAct').value, imageData}));
+}
+
+function renderBimbingan(c) {
+  const acts = activitiesOf('BIMBINGAN', ['Muhadatsah','Muhadharah','Wali Kelas','Tadarus / Hafalan','Ekstrakurikuler','Tawasul & Marhaba']);
+  c.innerHTML = `<div class="action-card"><h3>Program Bimbingan</h3>
+    <select id="bimAct">${acts.map(a => `<option>${escapeHtml(a)}</option>`).join('')}</select>
+    <input id="bimClass" placeholder="Kelas/kelompok (opsional)" style="margin-top:10px">
+    <textarea id="bimNote" rows="2" placeholder="Catatan (opsional)" style="margin-top:10px"></textarea>
+    ${cameraHTML('bim')}
+    <button class="primary" id="saveBim">Simpan</button><div id="bimMsg" class="msg"></div>
+  </div>`;
+  initCamera('bim');
+  bindSave('bim', 'saveBim', 'bimMsg', 'saveGenericActivity', imageData =>
+    ({activity: $('bimAct').value, classGroup: $('bimClass').value, note: $('bimNote').value, imageData}));
+}
+
+/** Ambil daftar aktivitas dari sheet AKTIVITAS (lewat bootstrap); pakai cadangan jika belum termuat. */
+function activitiesOf(kategori, fallback) {
+  const list = (BOOTSTRAP?.activities || [])
+    .filter(a => String(a.KATEGORI).toUpperCase() === kategori)
+    .map(a => String(a.NAMA_AKTIVITAS));
+  return list.length ? list : fallback;
+}
+
+/* ---------------- Cuti / Izin ---------------- */
+
+function renderCuti(c) {
+  const today = (BOOTSTRAP?.now || new Date().toISOString()).slice(0, 10);
+  const max = BOOTSTRAP?.config?.izinMaxPerHari || 3;
+  c.innerHTML = `<div class="action-card"><h3>Pengajuan Cuti / Izin</h3>
+    <div class="badge">Kuota maksimal ${max} guru per hari • Surat PDF dibuat otomatis</div>
+    <label>Jenis</label>
+    <select id="cutiJenis"><option value="IZIN">Izin</option><option value="SAKIT">Sakit</option><option value="CUTI">Cuti</option></select>
+    <div class="row">
+      <div><label>Tanggal mulai</label><input type="date" id="cutiMulai" min="${today}" value="${today}"></div>
+      <div><label>Tanggal selesai</label><input type="date" id="cutiSelesai" min="${today}" value="${today}"></div>
+    </div>
+    <div id="cutiQuota" class="quota"></div>
+    <label>Alasan</label><textarea id="cutiAlasan" rows="3" placeholder="Tuliskan alasan dengan jelas"></textarea>
+    <label>Foto bukti (surat dokter / surat keterangan / undangan, dll)</label>
+    ${cameraHTML('cuti')}
+    <button class="primary" id="saveCuti">Ajukan</button><div id="cutiMsg" class="msg"></div>
+    <div id="cutiSurat"></div>
+  </div>`;
+  const checkQuota = async () => {
+    const a = $('cutiMulai').value, b = $('cutiSelesai').value;
+    if (!a) return;
+    if (b && b < a) { $('cutiSelesai').value = a; }
+    try {
+      const q = await call('getLeaveQuota', TOKEN, a, $('cutiSelesai').value || a);
+      $('cutiQuota').innerHTML = q.days.map(d =>
+        `<span class="${d.full ? 'full' : ''}">${d.date}: ${d.used}/${q.max}${d.full ? ' (penuh)' : ''}</span>`).join(' • ');
+    } catch (e) { $('cutiQuota').textContent = e.message; }
+  };
+  $('cutiMulai').onchange = checkQuota;
+  $('cutiSelesai').onchange = checkQuota;
+  checkQuota();
+  initCamera('cuti');
+  const btn = $('saveCuti');
+  bindSave('cuti', 'saveCuti', 'cutiMsg', 'saveLeaveRequest', imageData => {
+    const alasan = $('cutiAlasan').value.trim();
+    if (alasan.length < 5) throw new Error('Alasan wajib diisi (minimal 5 huruf).');
+    return {jenis: $('cutiJenis').value, mulai: $('cutiMulai').value, selesai: $('cutiSelesai').value, alasan, imageData};
+  });
+  // tampilkan link surat setelah berhasil
+  const original = btn.onclick;
+  btn.onclick = async () => {
+    const r = await original();
+    if (r && r.suratUrl) {
+      $('cutiSurat').innerHTML = `<p class="small" style="margin-top:10px">Status: <b>DIAJUKAN</b> — menunggu persetujuan Kepala Sekolah.<br>
+        <a href="${escapeHtml(r.suratUrl)}" target="_blank" rel="noopener">📄 Buka surat permohonan (PDF)</a></p>`;
+    }
+  };
+}
+
+/* ---------------- Riwayat ---------------- */
+
+async function renderRiwayat(c) {
+  const data = await call('getMyHistory', TOKEN, 100);
+  const modules = ['Semua'].concat([...new Set(data.items.map(i => i.modul))]);
+  c.innerHTML = `<div class="action-card">
+    <h3>Riwayat Aktivitas</h3>
+    <div class="small">Hari ini: <b>${data.todayCount}</b> aktivitas • Total tercatat: <b>${data.total}</b></div>
+    <div class="filter-row" id="histFilter">${modules.map((m, i) =>
+      `<button type="button" data-m="${escapeHtml(m)}" class="${i === 0 ? 'on' : ''}">${escapeHtml(m)}</button>`).join('')}</div>
+    <div id="histList"></div>
+  </div>`;
+  const draw = m => {
+    const items = m === 'Semua' ? data.items : data.items.filter(i => i.modul === m);
+    $('histList').innerHTML = items.length ? items.map(i => `<div class="hist-item">
+      <div class="top"><b>${escapeHtml(i.label)}</b><span class="status ${escapeHtml(i.status)}">${escapeHtml(i.status || '-')}</span></div>
+      <div class="meta">${escapeHtml(i.modul)} • ${escapeHtml(i.waktu)}</div>
+      ${i.extra ? `<div class="meta">${escapeHtml(i.extra)}</div>` : ''}
+      ${i.fotoUrl ? `<a href="${escapeHtml(i.fotoUrl)}" target="_blank" rel="noopener">Lihat bukti</a>` : ''}
+    </div>`).join('') : '<div class="empty">Belum ada aktivitas.</div>';
+  };
+  $('histFilter').querySelectorAll('button').forEach(b => b.onclick = () => {
+    $('histFilter').querySelectorAll('button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); draw(b.dataset.m);
+  });
+  draw('Semua');
+}
+
+/* ---------------- Persetujuan (Kepala Sekolah / Admin) ---------------- */
+
+async function renderPersetujuan(c) {
+  const list = await call('getPendingApprovals', TOKEN);
+  if (!list.length) {
+    c.innerHTML = '<div class="action-card"><h3>Persetujuan</h3><div class="empty">Tidak ada pengajuan yang menunggu. ✔</div></div>';
+    return;
+  }
+  c.innerHTML = `<div class="action-card"><h3>Menunggu keputusan (${list.length})</h3>
+    ${list.map((p, i) => `<div class="appr-item" id="appr_${i}">
+      <div class="top"><b>${escapeHtml(p.nama)}</b><span class="status DIAJUKAN">${p.type === 'CUTI' ? 'CUTI/IZIN' : 'INVAL'}</span></div>
+      <div class="meta">${escapeHtml(p.judul)}</div>
+      <div class="meta">Alasan: ${escapeHtml(p.alasan || '-')}</div>
+      <div class="meta">Diajukan: ${escapeHtml(p.waktu)}</div>
+      <div style="margin-top:6px">
+        ${p.buktiUrl ? `<a href="${escapeHtml(p.buktiUrl)}" target="_blank" rel="noopener">Foto bukti</a>` : ''}
+        ${p.suratUrl ? `<a href="${escapeHtml(p.suratUrl)}" target="_blank" rel="noopener">Surat PDF</a>` : ''}
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button type="button" class="danger" data-i="${i}" data-d="DITOLAK">Tolak</button>
+        <button type="button" class="approve" data-i="${i}" data-d="DISETUJUI">Setujui</button>
+      </div>
+      <div class="msg" id="apprMsg_${i}"></div>
+    </div>`).join('')}
+  </div>`;
+  c.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => {
+    const i = Number(b.dataset.i), p = list[i], d = b.dataset.d;
+    if (d === 'DITOLAK' && !confirm('Tolak pengajuan ' + p.nama + '?')) return;
+    $('appr_' + i).querySelectorAll('button').forEach(x => x.disabled = true);
+    try {
+      await call('decideApproval', TOKEN, {type: p.type, id: p.id, decision: d});
+      showMsg('apprMsg_' + i, d === 'DISETUJUI' ? '✔ Disetujui' : '✘ Ditolak', d === 'DISETUJUI');
+    } catch (e) {
+      showMsg('apprMsg_' + i, e.message);
+      $('appr_' + i).querySelectorAll('button').forEach(x => x.disabled = false);
+    }
+  });
+}
+
+/* ---------------- kamera ---------------- */
+
+function cameraHTML(id) {
+  return `<div class="camera" id="cam_${id}" style="margin-top:14px">
+    <video id="video_${id}" autoplay playsinline muted></video>
+    <img id="preview_${id}" style="display:none">
+    <canvas id="canvas_${id}" hidden></canvas>
+  </div>
+  <div class="camera-controls">
+    <button class="secondary" type="button" onclick="retakePhoto('${id}')">🔁 Ulangi</button>
+    <button class="capture" type="button" onclick="capturePhoto('${id}')">📷 Ambil Foto</button>
+  </div>
+  <div id="camMsg_${id}" class="msg"></div>`;
+}
+
+async function initCamera(id) {
+  stopCamera();
+  delete PHOTOS[id];
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showMsg('camMsg_' + id, 'Browser ini tidak mendukung kamera. Buka lewat Chrome/Safari terbaru.');
+    return;
+  }
+  try {
+    CAMERA_STREAM = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
+    const v = $('video_' + id);
+    if (v) { v.srcObject = CAMERA_STREAM; v.style.display = 'block'; }
+    const p = $('preview_' + id); if (p) p.style.display = 'none';
+    showMsg('camMsg_' + id, '');
+  } catch (e) {
+    showMsg('camMsg_' + id, 'Kamera tidak dapat diakses. Pastikan izin kamera diberikan.');
+  }
+}
+
+function capturePhoto(id) {
+  const video = $('video_' + id), canvas = $('canvas_' + id), preview = $('preview_' + id);
+  if (!video || !video.videoWidth) { showMsg('camMsg_' + id, 'Kamera belum siap. Tunggu sebentar atau tekan Ulangi.'); return null; }
+  const maxW = 1280, scale = Math.min(1, maxW / video.videoWidth);
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const data = canvas.toDataURL('image/jpeg', 0.82);
+  PHOTOS[id] = data;
+  preview.src = data;
+  preview.style.display = 'block';
+  video.style.display = 'none';
+  showMsg('camMsg_' + id, 'Foto siap. Tekan tombol simpan, atau Ulangi untuk foto baru.', true);
+  return data;
+}
+
+function retakePhoto(id) {
+  initCamera(id);
+}
+
+function stopCamera() {
+  if (CAMERA_STREAM) { CAMERA_STREAM.getTracks().forEach(t => t.stop()); CAMERA_STREAM = null; }
+}
+</script>
+
+<script>
+/* PWA: pemasangan ikon & cache */
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredInstall = e;
+  const bar = document.getElementById('installBar'); if (bar) bar.classList.remove('hidden');
+});
+window.addEventListener('appinstalled', () => { const bar = document.getElementById('installBar'); if (bar) bar.classList.add('hidden'); });
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.onclick = async () => { if (!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; document.getElementById('installBar').classList.add('hidden'); };
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
 </html>

@@ -2,7 +2,7 @@
   "name": "J-SMART PPM Al-Jumhuriyah",
   "short_name": "J-SMART",
   "description": "Absensi & monitoring guru PPM Al-Jumhuriyah",
-  "start_url": "./?app=1",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
