@@ -87,6 +87,14 @@ button{font:inherit;border:0;cursor:pointer}
 .quota .full{color:var(--danger);font-weight:800}
 .danger{flex:1;padding:11px;border-radius:12px;background:#fde8e6;color:var(--danger);font-weight:800}
 .approve{flex:1;padding:11px;border-radius:12px;background:var(--green);color:#fff;font-weight:800}
+.camera{position:relative}
+.flip-btn{position:absolute;right:12px;top:12px;width:46px;height:46px;border-radius:50%;background:#000a;color:#fff;font-size:22px;display:none;align-items:center;justify-content:center;border:1px solid #fff6}
+.link-btn{background:none;padding:0;margin-right:12px;font-size:11px;color:var(--green);font-weight:800;text-decoration:underline}
+.viewer{position:fixed;inset:0;z-index:1000;background:#000c;display:none;align-items:center;justify-content:center;padding:14px}
+.viewer.open{display:flex}
+.viewer-card{background:#fff;border-radius:20px;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:14px}
+.viewer-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.viewer-img{width:100%;border-radius:14px;display:block}
 .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 8px}
 @media(max-width:340px){.menu-grid{grid-template-columns:1fr}}@media(max-width:400px){.view{padding:12px}.menu-card{padding:14px 12px}}
 </style>
@@ -203,7 +211,7 @@ const ENDPOINTS = [
   'getGuruForInval','getAssignmentsForGuru',
   'saveTeachingAttendance','saveInval','savePiketAttendance','saveGenericActivity',
   'getMyHistory','getLeaveQuota','saveLeaveRequest',
-  'getPendingApprovals','decideApproval','ping'
+  'getPendingApprovals','decideApproval','getBuktiFile','ping'
 ];
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
@@ -596,7 +604,7 @@ function renderCuti(c) {
     const r = await original();
     if (r && r.suratUrl) {
       $('cutiSurat').innerHTML = `<p class="small" style="margin-top:10px">Status: <b>DIAJUKAN</b> — menunggu persetujuan Kepala Sekolah.<br>
-        <a href="${escapeHtml(r.suratUrl)}" target="_blank" rel="noopener">📄 Buka surat permohonan (PDF)</a></p>`;
+        ${fileBtn(r.suratUrl, '📄 Buka surat permohonan (PDF)')}</p>`;
     }
   };
 }
@@ -619,7 +627,7 @@ async function renderRiwayat(c) {
       <div class="top"><b>${escapeHtml(i.label)}</b><span class="status ${escapeHtml(i.status)}">${escapeHtml(i.status || '-')}</span></div>
       <div class="meta">${escapeHtml(i.modul)} • ${escapeHtml(i.waktu)}</div>
       ${i.extra ? `<div class="meta">${escapeHtml(i.extra)}</div>` : ''}
-      ${i.fotoUrl ? `<a href="${escapeHtml(i.fotoUrl)}" target="_blank" rel="noopener">Lihat bukti</a>` : ''}
+      ${i.fotoUrl ? fileBtn(i.fotoUrl, i.modul === 'Cuti/Izin' ? 'Lihat surat' : 'Lihat bukti') : ''}
     </div>`).join('') : '<div class="empty">Belum ada aktivitas.</div>';
   };
   $('histFilter').querySelectorAll('button').forEach(b => b.onclick = () => {
@@ -644,8 +652,8 @@ async function renderPersetujuan(c) {
       <div class="meta">Alasan: ${escapeHtml(p.alasan || '-')}</div>
       <div class="meta">Diajukan: ${escapeHtml(p.waktu)}</div>
       <div style="margin-top:6px">
-        ${p.buktiUrl ? `<a href="${escapeHtml(p.buktiUrl)}" target="_blank" rel="noopener">Foto bukti</a>` : ''}
-        ${p.suratUrl ? `<a href="${escapeHtml(p.suratUrl)}" target="_blank" rel="noopener">Surat PDF</a>` : ''}
+        ${p.buktiUrl ? fileBtn(p.buktiUrl, 'Foto bukti') : ''}
+        ${p.suratUrl ? fileBtn(p.suratUrl, 'Surat PDF') : ''}
       </div>
       <div class="row" style="margin-top:10px">
         <button type="button" class="danger" data-i="${i}" data-d="DITOLAK">Tolak</button>
@@ -670,17 +678,35 @@ async function renderPersetujuan(c) {
 
 /* ---------------- kamera ---------------- */
 
+// Kamera depan (selfie) = 'user', kamera belakang = 'environment'. Pilihan terakhir diingat.
+let FACING = store.get('jsmart_facing') || 'user';
+
 function cameraHTML(id) {
   return `<div class="camera" id="cam_${id}" style="margin-top:14px">
     <video id="video_${id}" autoplay playsinline muted></video>
     <img id="preview_${id}" style="display:none">
     <canvas id="canvas_${id}" hidden></canvas>
+    <button type="button" class="flip-btn" id="flip_${id}" onclick="flipCamera('${id}')" aria-label="Putar kamera">🔄</button>
   </div>
   <div class="camera-controls">
     <button class="secondary" type="button" onclick="retakePhoto('${id}')">🔁 Ulangi</button>
     <button class="capture" type="button" onclick="capturePhoto('${id}')">📷 Ambil Foto</button>
   </div>
+  <div class="small" id="camMode_${id}" style="text-align:center;margin-top:6px"></div>
   <div id="camMsg_${id}" class="msg"></div>`;
+}
+
+async function openStream(facing) {
+  const tries = [
+    {video: {facingMode: {exact: facing}, width: {ideal: 1280}}, audio: false},
+    {video: {facingMode: facing}, audio: false},
+    {video: true, audio: false}
+  ];
+  let lastErr;
+  for (const c of tries) {
+    try { return await navigator.mediaDevices.getUserMedia(c); } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
 }
 
 async function initCamera(id) {
@@ -691,28 +717,43 @@ async function initCamera(id) {
     return;
   }
   try {
-    CAMERA_STREAM = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
+    CAMERA_STREAM = await openStream(FACING);
     const v = $('video_' + id);
-    if (v) { v.srcObject = CAMERA_STREAM; v.style.display = 'block'; }
+    if (v) {
+      v.srcObject = CAMERA_STREAM;
+      v.style.display = 'block';
+      v.style.transform = FACING === 'user' ? 'scaleX(-1)' : 'none'; // tampilan cermin saat selfie
+    }
     const p = $('preview_' + id); if (p) p.style.display = 'none';
+    const f = $('flip_' + id); if (f) f.style.display = 'flex';
+    const m = $('camMode_' + id); if (m) m.textContent = FACING === 'user' ? 'Kamera depan (selfie) • ketuk 🔄 untuk ganti' : 'Kamera belakang • ketuk 🔄 untuk ganti';
     showMsg('camMsg_' + id, '');
   } catch (e) {
     showMsg('camMsg_' + id, 'Kamera tidak dapat diakses. Pastikan izin kamera diberikan.');
   }
 }
 
+function flipCamera(id) {
+  FACING = FACING === 'user' ? 'environment' : 'user';
+  store.set('jsmart_facing', FACING);
+  initCamera(id);
+}
+
 function capturePhoto(id) {
   const video = $('video_' + id), canvas = $('canvas_' + id), preview = $('preview_' + id);
   if (!video || !video.videoWidth) { showMsg('camMsg_' + id, 'Kamera belum siap. Tunggu sebentar atau tekan Ulangi.'); return null; }
-  const maxW = 1280, scale = Math.min(1, maxW / video.videoWidth);
+  const maxW = 1080, scale = Math.min(1, maxW / video.videoWidth);
   canvas.width = Math.round(video.videoWidth * scale);
   canvas.height = Math.round(video.videoHeight * scale);
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-  const data = canvas.toDataURL('image/jpeg', 0.82);
+  const ctx = canvas.getContext('2d');
+  if (FACING === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); } // simpan seperti yang terlihat
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const data = canvas.toDataURL('image/jpeg', 0.8);
   PHOTOS[id] = data;
   preview.src = data;
   preview.style.display = 'block';
   video.style.display = 'none';
+  const f = $('flip_' + id); if (f) f.style.display = 'none';
   showMsg('camMsg_' + id, 'Foto siap. Tekan tombol simpan, atau Ulangi untuk foto baru.', true);
   return data;
 }
@@ -723,6 +764,59 @@ function retakePhoto(id) {
 
 function stopCamera() {
   if (CAMERA_STREAM) { CAMERA_STREAM.getTracks().forEach(t => t.stop()); CAMERA_STREAM = null; }
+}
+
+/* ---------------- penampil foto & surat (tanpa membuka Google Drive) ---------------- */
+
+function driveId(url) {
+  const m = String(url || '').match(/\/d\/([A-Za-z0-9_-]{10,})/) || String(url || '').match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return m ? m[1] : '';
+}
+
+function fileBtn(url, label) {
+  const id = driveId(url);
+  return id ? `<button type="button" class="link-btn" data-file="${id}">${escapeHtml(label)}</button>` : '';
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-file]');
+  if (b) { e.preventDefault(); openFile(b.dataset.file, b.textContent); }
+});
+
+let VIEWER_URL = null;
+async function openFile(id, title) {
+  let box = $('viewer');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'viewer';
+    box.className = 'viewer';
+    box.innerHTML = '<div class="viewer-card"><div class="viewer-top"><b id="viewerTitle"></b><button type="button" class="icon-btn" id="viewerClose">✕</button></div><div id="viewerBody"></div></div>';
+    document.body.appendChild(box);
+    $('viewerClose').onclick = closeViewer;
+    box.addEventListener('click', ev => { if (ev.target === box) closeViewer(); });
+  }
+  $('viewerTitle').textContent = title || 'Berkas';
+  $('viewerBody').innerHTML = '<div class="empty">Memuat berkas...</div>';
+  box.classList.add('open');
+  try {
+    const f = await call('getBuktiFile', TOKEN, id);
+    const bin = atob(f.data), arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    if (VIEWER_URL) URL.revokeObjectURL(VIEWER_URL);
+    VIEWER_URL = URL.createObjectURL(new Blob([arr], {type: f.mime}));
+    if (/^image\//.test(f.mime)) {
+      $('viewerBody').innerHTML = `<img src="${VIEWER_URL}" alt="${escapeHtml(title || 'Foto bukti')}" class="viewer-img">`;
+    } else {
+      $('viewerBody').innerHTML = `<div class="empty">📄 ${escapeHtml(f.name)}</div>
+        <a class="primary" style="display:block;text-align:center;text-decoration:none" href="${VIEWER_URL}" download="${escapeHtml(f.name)}" target="_blank" rel="noopener">Buka / Unduh PDF</a>`;
+    }
+  } catch (err) {
+    $('viewerBody').innerHTML = '<div class="msg">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function closeViewer() {
+  const box = $('viewer'); if (box) box.classList.remove('open');
 }
 </script>
 
