@@ -565,6 +565,7 @@ function renderCuti(c) {
   const max = BOOTSTRAP?.config?.izinMaxPerHari || 3;
   c.innerHTML = `<div class="action-card"><h3>Pengajuan Cuti / Izin</h3>
     <div class="badge">Kuota maksimal ${max} guru per hari • Surat PDF dibuat otomatis</div>
+    <div id="cutiBulan" class="msg" style="display:none"></div>
     <label>Jenis</label>
     <select id="cutiJenis"><option value="IZIN">Izin</option><option value="SAKIT">Sakit</option><option value="CUTI">Cuti</option></select>
     <div class="row">
@@ -586,6 +587,13 @@ function renderCuti(c) {
       const q = await call('getLeaveQuota', TOKEN, a, $('cutiSelesai').value || a);
       $('cutiQuota').innerHTML = q.days.map(d =>
         `<span class="${d.full ? 'full' : ''}">${d.date}: ${d.used}/${q.max}${d.full ? ' (penuh)' : ''}</span>`).join(' • ');
+      if (q.bulan) {
+        const b = q.bulan;
+        showMsg('cutiBulan', b.penuh
+          ? `⚠ Pengajuan Anda untuk ${b.nama} sudah ${b.used}/${b.max}. Batas tercapai — pengajuan baru di bulan ini akan otomatis DITOLAK.`
+          : `Pengajuan Anda untuk ${b.nama}: ${b.used}/${b.max} (sisa ${b.max - b.used}x).`, !b.penuh);
+        $('cutiBulan').style.display = '';
+      }
     } catch (e) { $('cutiQuota').textContent = e.message; }
   };
   $('cutiMulai').onchange = checkQuota;
@@ -602,6 +610,12 @@ function renderCuti(c) {
   const original = btn.onclick;
   btn.onclick = async () => {
     const r = await original();
+    if (r && r.ditolakOtomatis) {
+      showMsg('cutiMsg', '✘ Pengajuan DITOLAK otomatis. ' + (r.pesan || ''));
+      $('cutiSurat').innerHTML = `<p class="small" style="margin-top:10px">Status: <b style="color:var(--danger)">DITOLAK</b> — batas pengajuan bulan ini sudah terpenuhi.</p>`;
+      $('saveCuti').textContent = 'Ditolak ✘';
+      return;
+    }
     if (r && r.suratUrl) {
       $('cutiSurat').innerHTML = `<p class="small" style="margin-top:10px">Status: <b>DIAJUKAN</b> — menunggu persetujuan Kepala Sekolah.<br>
         ${fileBtn(r.suratUrl, '📄 Buka surat permohonan (PDF)')}</p>`;
@@ -627,6 +641,7 @@ async function renderRiwayat(c) {
       <div class="top"><b>${escapeHtml(i.label)}</b><span class="status ${escapeHtml(i.status)}">${escapeHtml(i.status || '-')}</span></div>
       <div class="meta">${escapeHtml(i.modul)} • ${escapeHtml(i.waktu)}</div>
       ${i.extra ? `<div class="meta">${escapeHtml(i.extra)}</div>` : ''}
+      ${i.catatan ? `<div class="meta" style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff8e1;color:#5c4300">📝 <b>Catatan:</b> ${escapeHtml(i.catatan)}</div>` : ''}
       ${i.fotoUrl ? fileBtn(i.fotoUrl, i.modul === 'Cuti/Izin' ? 'Lihat surat' : 'Lihat bukti') : ''}
     </div>`).join('') : '<div class="empty">Belum ada aktivitas.</div>';
   };
@@ -651,10 +666,12 @@ async function renderPersetujuan(c) {
       <div class="meta">${escapeHtml(p.judul)}</div>
       <div class="meta">Alasan: ${escapeHtml(p.alasan || '-')}</div>
       <div class="meta">Diajukan: ${escapeHtml(p.waktu)}</div>
+      ${p.info ? `<div class="meta"><b>${escapeHtml(p.info)}</b></div>` : ''}
       <div style="margin-top:6px">
         ${p.buktiUrl ? fileBtn(p.buktiUrl, 'Foto bukti') : ''}
         ${p.suratUrl ? fileBtn(p.suratUrl, 'Surat PDF') : ''}
       </div>
+      <textarea id="apprNote_${i}" rows="2" maxlength="500" placeholder="Catatan untuk guru (opsional), mis. alasan ditolak / pesan" style="margin-top:10px"></textarea>
       <div class="row" style="margin-top:10px">
         <button type="button" class="danger" data-i="${i}" data-d="DITOLAK">Tolak</button>
         <button type="button" class="approve" data-i="${i}" data-d="DISETUJUI">Setujui</button>
@@ -665,13 +682,16 @@ async function renderPersetujuan(c) {
   c.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => {
     const i = Number(b.dataset.i), p = list[i], d = b.dataset.d;
     if (d === 'DITOLAK' && !confirm('Tolak pengajuan ' + p.nama + '?')) return;
+    const catatan = $('apprNote_' + i).value.trim();
     $('appr_' + i).querySelectorAll('button').forEach(x => x.disabled = true);
+    $('apprNote_' + i).disabled = true;
     try {
-      await call('decideApproval', TOKEN, {type: p.type, id: p.id, decision: d});
-      showMsg('apprMsg_' + i, d === 'DISETUJUI' ? '✔ Disetujui' : '✘ Ditolak', d === 'DISETUJUI');
+      await call('decideApproval', TOKEN, {type: p.type, id: p.id, decision: d, catatan: catatan});
+      showMsg('apprMsg_' + i, (d === 'DISETUJUI' ? '✔ Disetujui' : '✘ Ditolak') + (catatan ? ' • catatan terkirim ke guru' : ''), d === 'DISETUJUI');
     } catch (e) {
       showMsg('apprMsg_' + i, e.message);
       $('appr_' + i).querySelectorAll('button').forEach(x => x.disabled = false);
+      $('apprNote_' + i).disabled = false;
     }
   });
 }
