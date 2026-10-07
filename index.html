@@ -162,6 +162,7 @@ button{font:inherit;border:0;cursor:pointer}
       </div>
 
       <div class="menu-grid">
+        <button data-module="kerja" id="menuKerja" class="menu-card hidden"><span>💼</span><b>Kehadiran Kerja</b><small>8 sesi per hari</small></button>
         <button data-module="mengajar" class="menu-card"><span>📚</span><b>Absen Mengajar</b><small>Foto langsung</small></button>
         <button data-module="inval" class="menu-card"><span>🔄</span><b>INVAL</b><small>Guru pengganti</small></button>
         <button data-module="piket" class="menu-card"><span>🛡️</span><b>Guru Piket</b><small>Datang &amp; selesai</small></button>
@@ -171,7 +172,7 @@ button{font:inherit;border:0;cursor:pointer}
         <button data-module="bimbingan" class="menu-card"><span>📖</span><b>Bimbingan</b><small>Program pesantren</small></button>
         <button data-module="cuti" class="menu-card"><span>📝</span><b>Cuti / Izin</b><small>Surat otomatis</small></button>
         <button data-module="riwayat" class="menu-card"><span>📋</span><b>Riwayat</b><small>Aktivitas saya</small></button>
-        <button data-module="persetujuan" id="menuPersetujuan" class="menu-card hidden"><span>✅</span><b>Persetujuan</b><small id="pendingHint">Cuti/Izin &amp; INVAL</small></button>
+        <button data-module="persetujuan" id="menuPersetujuan" class="menu-card hidden"><span>✅</span><b>Persetujuan</b><small id="pendingHint">Cuti / Izin</small></button>
       </div>
       <div class="slogan-bottom">Lembur Ilmu • Kancah Ibadah • Majlis Disiplin • Wahana Perjuangan</div>
     </section>
@@ -211,7 +212,8 @@ const ENDPOINTS = [
   'getGuruForInval','getAssignmentsForGuru',
   'saveTeachingAttendance','saveInval','savePiketAttendance','saveGenericActivity',
   'getMyHistory','getLeaveQuota','saveLeaveRequest',
-  'getPendingApprovals','decideApproval','getBuktiFile','ping'
+  'getPendingApprovals','decideApproval','getBuktiFile','ping',
+  'getKehadiranKerja','saveKehadiranKerja'
 ];
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
@@ -358,6 +360,7 @@ async function enterHome() {
   $('guruName').textContent = PROFILE.guru.NAMA_GURU;
   $('roleName').textContent = String(PROFILE.session.role || '').replace(/_/g, ' ');
   $('menuPersetujuan').classList.toggle('hidden', !PROFILE.isApprover);
+  $('menuKerja').classList.toggle('hidden', !PROFILE.isStafKerja);
   $('loginView').classList.add('hidden');
   $('homeView').classList.remove('hidden');
   startClock();
@@ -413,7 +416,8 @@ function openModule(name) {
   const titles = {
     mengajar: 'Absen Mengajar', inval: 'INVAL / Guru Pengganti', piket: 'Guru Piket',
     apel: 'Apel Pagi', ibadah: 'Kehadiran Ibadah', kegiatanPagi: 'Kegiatan Pagi',
-    bimbingan: 'Program Bimbingan', cuti: 'Cuti / Izin', riwayat: 'Riwayat Saya', persetujuan: 'Persetujuan'
+    bimbingan: 'Program Bimbingan', cuti: 'Cuti / Izin', riwayat: 'Riwayat Saya', persetujuan: 'Persetujuan Cuti / Izin',
+    kerja: 'Kehadiran Kerja'
   };
   $('moduleTitle').textContent = titles[name] || 'Aktivitas';
   const c = $('moduleContent');
@@ -421,7 +425,7 @@ function openModule(name) {
   const renderers = {
     mengajar: renderMengajar, inval: renderInval, piket: renderPiket, apel: renderApel,
     ibadah: renderIbadah, kegiatanPagi: renderKegiatanPagi, bimbingan: renderBimbingan,
-    cuti: renderCuti, riwayat: renderRiwayat, persetujuan: renderPersetujuan
+    cuti: renderCuti, riwayat: renderRiwayat, persetujuan: renderPersetujuan, kerja: renderKerja
   };
   Promise.resolve((renderers[name] || (() => {}))(c)).catch(e => {
     c.innerHTML = '<div class="action-card"><div class="msg">' + escapeHtml(e.message) + '</div></div>';
@@ -453,20 +457,32 @@ function renderMengajar(c) {
 
 async function renderInval(c) {
   const gurus = await call('getGuruForInval', TOKEN);
-  const opts = gurus.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+  if (!gurus.length) {
+    c.innerHTML = `<div class="action-card"><h3>Guru Pengganti (INVAL)</h3>
+      <div class="empty">Hari ini tidak ada guru yang cuti/izinnya sudah disetujui Kepala Sekolah.</div>
+      <p class="small" style="margin-top:10px">INVAL hanya bisa dicatat untuk menggantikan guru yang pengajuan cuti/izinnya
+      <b>sudah DISETUJUI</b> dan berlaku hari ini. Jika ada guru berhalangan tetapi belum mengajukan, minta guru tersebut
+      mengajukan Cuti/Izin terlebih dahulu.</p></div>`;
+    return;
+  }
+  const opts = gurus.map((g, i) => `<option value="${i}">${escapeHtml(g.name)}</option>`).join('');
   c.innerHTML = `<div class="action-card">
-    <h3>Guru Pengganti</h3>
+    <h3>Guru Pengganti (INVAL)</h3>
+    <div class="badge">Hanya guru yang cuti/izinnya sudah disetujui Kepala Sekolah</div>
     <label>Guru yang digantikan</label><select id="invalGuru">${opts}</select>
+    <div id="invalCuti" class="msg ok"></div>
     <label>Kelas & mata pelajaran</label>
     <select id="invalAssignment"><option>Memuat...</option></select>
-    <label>Alasan</label><textarea id="invalReason" rows="3" placeholder="Contoh: guru asli sakit"></textarea>
+    <label>Catatan (opsional)</label><textarea id="invalReason" rows="2" placeholder="Contoh: materi bab 3 sudah disampaikan"></textarea>
     ${cameraHTML('inval')}
     <button class="primary" id="saveInval">Simpan INVAL</button><div id="invalMsg" class="msg"></div>
   </div>`;
   let assignments = [];
   const loadAssignments = async () => {
+    const g = gurus[Number($('invalGuru').value)];
+    showMsg('invalCuti', `✔ ${g.jenis} disetujui • ${g.periode}`, true);
     $('invalAssignment').innerHTML = '<option>Memuat...</option>';
-    assignments = await call('getAssignmentsForGuru', TOKEN, $('invalGuru').value);
+    assignments = await call('getAssignmentsForGuru', TOKEN, g.id);
     $('invalAssignment').innerHTML = assignments.length
       ? assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}</option>`).join('')
       : '<option value="">Guru ini belum punya penugasan</option>';
@@ -477,10 +493,41 @@ async function renderInval(c) {
   bindSave('inval', 'saveInval', 'invalMsg', 'saveInval', imageData => {
     const a = assignments[Number($('invalAssignment').value)];
     if (!a) throw new Error('Pilih kelas & mata pelajaran.');
-    const reason = $('invalReason').value.trim();
-    if (!reason) throw new Error('Alasan wajib diisi.');
-    return {guruAsliId: $('invalGuru').value, classCode: a.classCode, subject: a.subject, reason, imageData};
+    const g = gurus[Number($('invalGuru').value)];
+    return {guruAsliId: g.id, classCode: a.classCode, subject: a.subject, reason: $('invalReason').value.trim(), imageData};
   });
+}
+
+/* ---------------- Kehadiran Kerja (pimpinan & staf) ---------------- */
+
+async function renderKerja(c) {
+  const st = await call('getKehadiranKerja', TOKEN);
+  const kosong = st.sesi.filter(x => !x.jam);
+  const chips = st.sesi.map(x => `<div style="padding:10px 6px;border-radius:12px;text-align:center;font-size:12px;
+      background:${x.jam ? '#e8f3ee' : '#f4f4f4'};color:${x.jam ? 'var(--green)' : '#777'}">
+      <b>Sesi ${x.ke}</b><br>${x.jam ? '✔ ' + escapeHtml(x.jam) : 'belum'}</div>`).join('');
+  c.innerHTML = `<div class="action-card">
+    <h3>Kehadiran Kerja Hari Ini</h3>
+    <div class="badge">${st.selesai}/${st.max} sesi tercatat • ${escapeHtml(st.tanggal)} • waktu server</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px">${chips}</div>
+    ${kosong.length ? `
+      <label>Sesi yang dicatat</label>
+      <select id="kerjaSesi">${kosong.map(x => `<option value="${x.ke}">Sesi ke-${x.ke}</option>`).join('')}</select>
+      <label>Kegiatan / keterangan (opsional)</label>
+      <textarea id="kerjaKet" rows="2" placeholder="Contoh: rapat koordinasi, administrasi keuangan"></textarea>
+      ${cameraHTML('kerja')}
+      <button class="primary" id="saveKerja">Simpan Kehadiran</button><div id="kerjaMsg" class="msg"></div>`
+    : '<div class="msg ok" style="margin-top:12px">✔ Semua sesi hari ini sudah tercatat. Terima kasih!</div>'}
+  </div>`;
+  if (!kosong.length) return;
+  initCamera('kerja');
+  bindSave('kerja', 'saveKerja', 'kerjaMsg', 'saveKehadiranKerja', imageData =>
+    ({sesi: Number($('kerjaSesi').value), keterangan: $('kerjaKet').value, imageData}));
+  const btn = $('saveKerja'), original = btn.onclick;
+  btn.onclick = async () => {
+    const r = await original();
+    if (r && r.success) setTimeout(() => renderKerja(c).catch(() => {}), 1500);
+  };
 }
 
 function renderPiket(c) {
