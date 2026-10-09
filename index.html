@@ -172,6 +172,7 @@ button{font:inherit;border:0;cursor:pointer}
         <button data-module="bimbingan" class="menu-card"><span>📖</span><b>Bimbingan</b><small>Program pesantren</small></button>
         <button data-module="cuti" class="menu-card"><span>📝</span><b>Cuti / Izin</b><small>Surat otomatis</small></button>
         <button data-module="riwayat" class="menu-card"><span>📋</span><b>Riwayat</b><small>Aktivitas saya</small></button>
+        <button data-module="pantau" id="menuPantau" class="menu-card hidden"><span>🏫</span><b>Pantau Kelas</b><small>Kelas &amp; sesi hari ini</small></button>
         <button data-module="persetujuan" id="menuPersetujuan" class="menu-card hidden"><span>✅</span><b>Persetujuan</b><small id="pendingHint">Cuti / Izin</small></button>
       </div>
       <div class="slogan-bottom">Lembur Ilmu • Kancah Ibadah • Majlis Disiplin • Wahana Perjuangan</div>
@@ -213,7 +214,7 @@ const ENDPOINTS = [
   'saveTeachingAttendance','saveInval','savePiketAttendance','saveGenericActivity',
   'getMyHistory','getLeaveQuota','saveLeaveRequest',
   'getPendingApprovals','decideApproval','getBuktiFile','ping',
-  'getKehadiranKerja','saveKehadiranKerja'
+  'getKehadiranKerja','saveKehadiranKerja','getPantauKelas'
 ];
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
@@ -361,6 +362,7 @@ async function enterHome() {
   $('roleName').textContent = String(PROFILE.session.role || '').replace(/_/g, ' ');
   $('menuPersetujuan').classList.toggle('hidden', !PROFILE.isApprover);
   $('menuKerja').classList.toggle('hidden', !PROFILE.isStafKerja);
+  $('menuPantau').classList.toggle('hidden', !PROFILE.isApprover);
   $('loginView').classList.add('hidden');
   $('homeView').classList.remove('hidden');
   startClock();
@@ -417,7 +419,7 @@ function openModule(name) {
     mengajar: 'Absen Mengajar', inval: 'INVAL / Guru Pengganti', piket: 'Guru Piket',
     apel: 'Apel Pagi', ibadah: 'Kehadiran Ibadah', kegiatanPagi: 'Kegiatan Pagi',
     bimbingan: 'Program Bimbingan', cuti: 'Cuti / Izin', riwayat: 'Riwayat Saya', persetujuan: 'Persetujuan Cuti / Izin',
-    kerja: 'Kehadiran Kerja'
+    kerja: 'Kehadiran Kerja', pantau: 'Pantau Kelas'
   };
   $('moduleTitle').textContent = titles[name] || 'Aktivitas';
   const c = $('moduleContent');
@@ -425,7 +427,7 @@ function openModule(name) {
   const renderers = {
     mengajar: renderMengajar, inval: renderInval, piket: renderPiket, apel: renderApel,
     ibadah: renderIbadah, kegiatanPagi: renderKegiatanPagi, bimbingan: renderBimbingan,
-    cuti: renderCuti, riwayat: renderRiwayat, persetujuan: renderPersetujuan, kerja: renderKerja
+    cuti: renderCuti, riwayat: renderRiwayat, persetujuan: renderPersetujuan, kerja: renderKerja, pantau: renderPantau
   };
   Promise.resolve((renderers[name] || (() => {}))(c)).catch(e => {
     c.innerHTML = '<div class="action-card"><div class="msg">' + escapeHtml(e.message) + '</div></div>';
@@ -444,14 +446,21 @@ function renderMengajar(c) {
     <h3>Pilih kelas & mata pelajaran</h3>
     <div class="badge">Waktu diambil otomatis dari server</div>
     <select id="teachAssignment" style="margin-top:12px">${opts}</select>
+    <label>Sesi ke-</label>
+    <select id="teachSesi">${sesiOptions(PROFILE.assignments[0].jenjang)}</select>
     ${cameraHTML('teach')}
     <button class="primary" id="saveTeach">Simpan Absensi</button>
     <div id="teachMsg" class="msg"></div>
   </div>`;
+  $('teachAssignment').onchange = () => {
+    $('teachSesi').innerHTML = sesiOptions(PROFILE.assignments[Number($('teachAssignment').value)].jenjang);
+  };
   initCamera('teach');
   bindSave('teach', 'saveTeach', 'teachMsg', 'saveTeachingAttendance', imageData => {
     const a = PROFILE.assignments[Number($('teachAssignment').value)];
-    return {classCode: a.classCode, subject: a.subject, imageData, deviceInfo: navigator.userAgent};
+    const sesi = Number($('teachSesi').value);
+    if (!sesi) throw new Error('Pilih sesi ke- berapa Anda mengajar.');
+    return {classCode: a.classCode, subject: a.subject, sesi, imageData, deviceInfo: navigator.userAgent};
   });
 }
 
@@ -473,6 +482,8 @@ async function renderInval(c) {
     <div id="invalCuti" class="msg ok"></div>
     <label>Kelas & mata pelajaran</label>
     <select id="invalAssignment"><option>Memuat...</option></select>
+    <label>Sesi ke-</label>
+    <select id="invalSesi">${sesiOptions('')}</select>
     <label>Catatan (opsional)</label><textarea id="invalReason" rows="2" placeholder="Contoh: materi bab 3 sudah disampaikan"></textarea>
     ${cameraHTML('inval')}
     <button class="primary" id="saveInval">Simpan INVAL</button><div id="invalMsg" class="msg"></div>
@@ -486,7 +497,13 @@ async function renderInval(c) {
     $('invalAssignment').innerHTML = assignments.length
       ? assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}</option>`).join('')
       : '<option value="">Guru ini belum punya penugasan</option>';
+    setInvalSesi();
   };
+  const setInvalSesi = () => {
+    const a = assignments[Number($('invalAssignment').value)];
+    $('invalSesi').innerHTML = sesiOptions(a ? a.jenjang : '');
+  };
+  $('invalAssignment').onchange = setInvalSesi;
   $('invalGuru').onchange = loadAssignments;
   await loadAssignments();
   initCamera('inval');
@@ -494,8 +511,72 @@ async function renderInval(c) {
     const a = assignments[Number($('invalAssignment').value)];
     if (!a) throw new Error('Pilih kelas & mata pelajaran.');
     const g = gurus[Number($('invalGuru').value)];
-    return {guruAsliId: g.id, classCode: a.classCode, subject: a.subject, reason: $('invalReason').value.trim(), imageData};
+    const sesi = Number($('invalSesi').value);
+    if (!sesi) throw new Error('Pilih sesi ke- berapa INVAL dilakukan.');
+    return {sesi, guruAsliId: g.id, classCode: a.classCode, subject: a.subject, reason: $('invalReason').value.trim(), imageData};
   });
+}
+
+function sesiOptions(jenjang) {
+  const m = PROFILE?.sesiMax || {};
+  const n = (jenjang && m[jenjang]) || (jenjang === 'SMP' ? 7 : 8);
+  let h = '<option value="">— pilih sesi (' + (jenjang || '') + ': 1–' + n + ') —</option>';
+  for (let i = 1; i <= n; i++) h += `<option value="${i}">Sesi ke-${i}</option>`;
+  return h;
+}
+
+/* ---------------- Pantau Kelas (Kepala Sekolah) ---------------- */
+
+let PANTAU_TIMER = null;
+async function renderPantau(c, tanggal) {
+  if (PANTAU_TIMER) { clearInterval(PANTAU_TIMER); PANTAU_TIMER = null; }
+  const d = await call('getPantauKelas', TOKEN, tanggal || '');
+  const filter = c.dataset.filter || 'SEMUA';
+  const pct = d.ringkasan.total ? Math.round(d.ringkasan.terisi / d.ringkasan.total * 100) : 0;
+  const kelas = d.kelas.filter(k => filter === 'SEMUA' || k.jenjang === filter);
+  const nm = s => escapeHtml(String(s).split(',')[0]);
+  c.innerHTML = `<div class="action-card">
+    <div class="row" style="align-items:end">
+      <div><label>Tanggal</label><input type="date" id="pantauTgl" value="${d.tanggal}"></div>
+      <div><button type="button" class="secondary" id="pantauRefresh" style="width:100%">🔄 Muat ulang</button></div>
+    </div>
+    <div class="badge" style="margin-top:10px">${d.ringkasan.terisi}/${d.ringkasan.total} sesi ada guru (${pct}%) •
+      ${d.ringkasan.kosong} sesi kosong${d.hariIni ? ' • diperbarui otomatis tiap 1 menit' : ''}</div>
+    <div class="filter-row" id="pantauFilter">${['SEMUA', 'SMP', 'MA'].map(f =>
+      `<button type="button" data-f="${f}" class="${f === filter ? 'on' : ''}">${f === 'SEMUA' ? 'Semua' : f}</button>`).join('')}</div>
+    ${d.izin.length ? `<div class="meta" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff8e1;color:#5c4300;font-size:12px">
+      🗓 Izin/cuti disetujui: ${d.izin.map(x => nm(x.nama) + ' (' + escapeHtml(x.jenis.toLowerCase()) + ')').join(', ')}</div>` : ''}
+  </div>
+  ${kelas.map(k => `<div class="action-card">
+    <div class="top" style="display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0">${escapeHtml(k.nama)}</h3>
+      <span class="status ${k.terisi === k.max ? '' : 'DIAJUKAN'}">${k.terisi}/${k.max} sesi</span></div>
+    <div style="margin-top:8px">${k.sesi.map(s => {
+      const ada = s.isi.length;
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:7px 4px;border-bottom:1px solid #eef1ef">
+        <b style="min-width:58px;font-size:12px;color:${ada ? 'var(--green)' : '#c0392b'}">Sesi ${s.ke}</b>
+        <div style="flex:1;font-size:12px">${ada ? s.isi.map(x =>
+          `<div>✔ <b>${nm(x.guru)}</b> — ${escapeHtml(x.mapel)} <span style="color:#777">${escapeHtml(x.jam)}</span>
+           ${x.inval ? `<span class="status DIAJUKAN" style="margin-left:4px">INVAL • ganti ${nm(x.ganti)}</span>` : ''}
+           ${x.fotoUrl ? fileBtn(x.fotoUrl, 'Foto') : ''}</div>`).join('')
+          : '<span style="color:#c0392b">✘ Belum ada guru</span>'}</div></div>`;
+    }).join('')}</div></div>`).join('')}
+  ${d.tanpaSesi.length ? `<div class="action-card"><h3>Absen tanpa nomor sesi</h3>
+    <p class="small">Tercatat sebelum pilihan sesi tersedia:</p>
+    ${d.tanpaSesi.map(x => `<div class="meta">Kelas ${escapeHtml(x.kelas)} • ${nm(x.guru)} — ${escapeHtml(x.mapel)} ${escapeHtml(x.jam)}${x.inval ? ' (INVAL)' : ''}</div>`).join('')}</div>` : ''}`;
+  $('pantauRefresh').onclick = () => renderPantau(c, $('pantauTgl').value).catch(e => alertMsg(c, e));
+  $('pantauTgl').onchange = () => renderPantau(c, $('pantauTgl').value).catch(e => alertMsg(c, e));
+  $('pantauFilter').querySelectorAll('button').forEach(b => b.onclick = () => {
+    c.dataset.filter = b.dataset.f; renderPantau(c, d.tanggal).catch(e => alertMsg(c, e));
+  });
+  if (d.hariIni) PANTAU_TIMER = setInterval(() => {
+    if ($('moduleView').classList.contains('hidden') || !$('pantauTgl')) { clearInterval(PANTAU_TIMER); PANTAU_TIMER = null; return; }
+    renderPantau(c, d.tanggal).catch(() => {});
+  }, 60000);
+}
+
+function alertMsg(c, e) {
+  c.insertAdjacentHTML('afterbegin', '<div class="action-card"><div class="msg">' + escapeHtml(e.message) + '</div></div>');
 }
 
 /* ---------------- Kehadiran Kerja (pimpinan & staf) ---------------- */
