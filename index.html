@@ -441,7 +441,7 @@ function renderMengajar(c) {
     c.innerHTML = '<div class="action-card"><h3>Belum ada penugasan</h3><p class="small">Anda belum terdaftar mengajar di sheet GURU_MAPEL_KELAS. Hubungi admin.</p></div>';
     return;
   }
-  const opts = PROFILE.assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}</option>`).join('');
+  const opts = PROFILE.assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}${a.rombel && a.rombel.length ? ' (' + a.rombel.join(', ') + ')' : ''}</option>`).join('');
   c.innerHTML = `<div class="action-card">
     <h3>Pilih kelas & mata pelajaran</h3>
     <div class="badge">Waktu diambil otomatis dari server</div>
@@ -456,9 +456,9 @@ function renderMengajar(c) {
   $('teachAssignment').onchange = () => {
     const a = PROFILE.assignments[Number($('teachAssignment').value)];
     $('teachSesi').innerHTML = sesiOptions(a.jenjang);
-    setRombel('teachRombel', a.classCode);
+    setRombel('teachRombel', a.classCode, a.rombel);
   };
-  setRombel('teachRombel', PROFILE.assignments[0].classCode);
+  setRombel('teachRombel', PROFILE.assignments[0].classCode, PROFILE.assignments[0].rombel);
   initCamera('teach');
   bindSave('teach', 'saveTeach', 'teachMsg', 'saveTeachingAttendance', imageData => {
     const a = PROFILE.assignments[Number($('teachAssignment').value)];
@@ -502,14 +502,14 @@ async function renderInval(c) {
     $('invalAssignment').innerHTML = '<option>Memuat...</option>';
     assignments = await call('getAssignmentsForGuru', TOKEN, g.id);
     $('invalAssignment').innerHTML = assignments.length
-      ? assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}</option>`).join('')
+      ? assignments.map((a, i) => `<option value="${i}">${a.jenjang} ${a.classCode} — ${escapeHtml(a.subject)}${a.rombel && a.rombel.length ? ' (' + a.rombel.join(', ') + ')' : ''}</option>`).join('')
       : '<option value="">Guru ini belum punya penugasan</option>';
     setInvalSesi();
   };
   const setInvalSesi = () => {
     const a = assignments[Number($('invalAssignment').value)];
     $('invalSesi').innerHTML = sesiOptions(a ? a.jenjang : '');
-    setRombel('invalRombel', a ? a.classCode : '');
+    setRombel('invalRombel', a ? a.classCode : '', a ? a.rombel : []);
   };
   $('invalAssignment').onchange = setInvalSesi;
   $('invalGuru').onchange = loadAssignments;
@@ -541,8 +541,9 @@ function rombelField(id) {
   return `<div id="${id}Wrap"><label>Rombel</label><select id="${id}"></select></div>`;
 }
 
-function setRombel(id, classCode) {
-  const list = (PROFILE?.rombel || {})[String(classCode)] || (classCode ? [String(classCode)] : []);
+function setRombel(id, classCode, khusus) {
+  let list = (PROFILE?.rombel || {})[String(classCode)] || (classCode ? [String(classCode)] : []);
+  if (khusus && khusus.length) { const ir = list.filter(r => khusus.includes(r)); list = ir.length ? ir : khusus; }
   $(id).innerHTML = list.length > 1
     ? '<option value="">— pilih rombel —</option>' + list.map(r => `<option value="${r}">${r}</option>`).join('')
     : list.map(r => `<option value="${r}">${r}</option>`).join('');
