@@ -214,7 +214,7 @@ const ENDPOINTS = [
   'saveTeachingAttendance','saveInval','savePiketAttendance','saveGenericActivity',
   'getMyHistory','getLeaveQuota','saveLeaveRequest',
   'getPendingApprovals','decideApproval','getBuktiFile','ping',
-  'getKehadiranKerja','saveKehadiranKerja','getPantauKelas'
+  'getKehadiranKerja','saveKehadiranKerja','getPantauKelas','getFotoThumbs','getDaftarGuru','catatIzinOlehKepsek'
 ];
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
@@ -555,12 +555,34 @@ async function renderPantau(c, tanggal) {
   if (PANTAU_TIMER) { clearInterval(PANTAU_TIMER); PANTAU_TIMER = null; }
   const d = await call('getPantauKelas', TOKEN, tanggal || '');
   const filter = c.dataset.filter || 'SEMUA';
+  const mode = c.dataset.mode || 'tabel';
   const kelas = d.kelas.filter(k => filter === 'SEMUA' || k.jenjang === filter || k.tingkat === filter);
   const terisi = kelas.reduce((n, k) => n + k.terisi, 0), total = kelas.reduce((n, k) => n + k.max, 0);
   const pct = total ? Math.round(terisi / total * 100) : 0;
   const nm = s => escapeHtml(String(s).split(',')[0]);
   const inisial = s => escapeHtml(String(s).split(',')[0].trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
   const maxCol = Math.max(...kelas.map(k => k.max), 1);
+  const foto = x => x.fotoId
+    ? `<img data-fid="${escapeHtml(x.fotoId)}" data-file="${escapeHtml(x.fotoId)}" alt="Foto ${nm(x.guru)}"
+        style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;background:#e9eeeb;display:block;cursor:pointer">`
+    : '<div style="aspect-ratio:3/4;border-radius:10px;background:#f4f4f4;display:flex;align-items:center;justify-content:center;font-size:11px;color:#999">tanpa foto</div>';
+  const fotoView = () => {
+    const ada = kelas.filter(k => k.terisi), kosongSemua = kelas.filter(k => !k.terisi);
+    return ada.map(k => `<div class="action-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">${escapeHtml(k.nama)}</h3><span class="status ${k.terisi === k.max ? '' : 'DIAJUKAN'}">${k.terisi}/${k.max} sesi</span></div>
+      ${k.terisi < k.max ? `<div class="meta" style="color:#c0392b;margin-top:4px;font-size:12px">✘ Kosong: ${k.sesi.filter(s => !s.isi.length).map(s => 'S' + s.ke).join(', ')}</div>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px">
+        ${k.sesi.filter(s => s.isi.length).map(s => s.isi.map(x => `<div>
+          ${foto(x)}
+          <div style="font-size:11px;margin-top:5px;line-height:1.35"><b>Sesi ${s.ke}</b> • ${escapeHtml(x.jam)}<br>
+            <b>${nm(x.guru)}</b><br><span style="color:#666">${escapeHtml(x.mapel)}</span>
+            ${x.inval ? `<br><span class="status DIAJUKAN">INVAL • ganti ${nm(x.ganti)}</span>` : ''}</div></div>`).join('')).join('')}
+      </div></div>`).join('') +
+      (kosongSemua.length ? `<div class="action-card"><h3>Belum ada guru sama sekali</h3>
+        <div class="meta" style="color:#c0392b;font-size:12px">${kosongSemua.map(k => escapeHtml(k.kode)).join(', ')}</div></div>` : '') +
+      (!ada.length ? '<div class="action-card"><div class="empty">Belum ada foto kehadiran pada tanggal ini.</div></div>' : '');
+  };
   const cell = 'width:34px;height:34px;text-align:center;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer';
   c.innerHTML = `<div class="action-card">
     <div class="row" style="align-items:end">
@@ -570,10 +592,13 @@ async function renderPantau(c, tanggal) {
     <div class="badge" style="margin-top:10px">${terisi}/${total} sesi ada guru (${pct}%) • ${total - terisi} kosong${d.hariIni ? ' • otomatis tiap 1 menit' : ''}</div>
     <div class="filter-row" id="pantauFilter">${['SEMUA', 'SMP', 'MA', '1', '2', '3', '4', '5', '6'].map(f =>
       `<button type="button" data-f="${f}" class="${f === filter ? 'on' : ''}">${f === 'SEMUA' ? 'Semua' : (/^\d$/.test(f) ? 'Kls ' + f : f)}</button>`).join('')}</div>
+    <div class="filter-row" id="pantauMode">
+      <button type="button" data-m="tabel" class="${mode === 'tabel' ? 'on' : ''}">📊 Tabel sesi</button>
+      <button type="button" data-m="foto" class="${mode === 'foto' ? 'on' : ''}">📷 Foto kehadiran</button></div>
     ${d.izin.length ? `<div class="meta" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff8e1;color:#5c4300;font-size:12px">
       🗓 Izin/cuti disetujui: ${d.izin.map(x => nm(x.nama) + ' (' + escapeHtml(x.jenis.toLowerCase()) + ')').join(', ')}</div>` : ''}
   </div>
-  <div class="action-card" style="padding-left:10px;padding-right:10px">
+  ${mode === 'foto' ? fotoView() : `<div class="action-card" style="padding-left:10px;padding-right:10px">
     <div class="small" style="margin-bottom:8px">Ketuk kotak untuk melihat guru. <b style="color:var(--green)">Hijau</b> = ada guru (inisial),
       <b style="color:#8a6200">kuning</b> = INVAL, <b style="color:#c0392b">merah</b> = kosong.</div>
     <div style="overflow-x:auto">
@@ -592,7 +617,7 @@ async function renderPantau(c, tanggal) {
         <td style="font-size:11px;color:#777;white-space:nowrap">${k.terisi}/${k.max}</td></tr>`).join('')}
     </table></div>
     <div id="pantauDetail" style="margin-top:10px"></div>
-  </div>
+  </div>`}
   ${d.tanpaSesi.length ? `<div class="action-card"><h3>Absen belum lengkap</h3>
     <p class="small">Tercatat tanpa nomor sesi / rombel (sebelum fitur ini aktif):</p>
     ${d.tanpaSesi.map(x => `<div class="meta">${escapeHtml(x.kelas)} • ${nm(x.guru)} — ${escapeHtml(x.mapel)} ${escapeHtml(x.jam)}${x.inval ? ' (INVAL)' : ''}</div>`).join('')}</div>` : ''}`;
@@ -600,10 +625,17 @@ async function renderPantau(c, tanggal) {
     const k = kelas[Number(td.dataset.k)], s = k.sesi[Number(td.dataset.s)];
     $('pantauDetail').innerHTML = `<div style="padding:10px 12px;border-radius:12px;background:#f6faf8">
       <b>${escapeHtml(k.nama)} • Sesi ${s.ke}</b>
-      ${s.isi.length ? s.isi.map(x => `<div class="meta" style="margin-top:6px">✔ <b>${nm(x.guru)}</b> — ${escapeHtml(x.mapel)} • ${escapeHtml(x.jam)}
-        ${x.inval ? `<span class="status DIAJUKAN">INVAL • ganti ${nm(x.ganti)}</span>` : ''} ${x.fotoUrl ? fileBtn(x.fotoUrl, 'Foto') : ''}</div>`).join('')
+      ${s.isi.length ? s.isi.map(x => `<div style="display:flex;gap:10px;margin-top:8px;align-items:flex-start">
+        <div style="width:84px;flex:none">${foto(x)}</div>
+        <div class="meta">✔ <b>${nm(x.guru)}</b><br>${escapeHtml(x.mapel)} • ${escapeHtml(x.jam)}
+        ${x.inval ? `<br><span class="status DIAJUKAN">INVAL • ganti ${nm(x.ganti)}</span>` : ''}<br><span class="small">Ketuk foto untuk memperbesar</span></div></div>`).join('')
         : '<div class="meta" style="margin-top:6px;color:#c0392b">✘ Belum ada guru yang absen di sesi ini.</div>'}</div>`;
+    loadThumbs($('pantauDetail'));
   });
+  $('pantauMode').querySelectorAll('button').forEach(b => b.onclick = () => {
+    c.dataset.mode = b.dataset.m; renderPantau(c, d.tanggal).catch(e => alertMsg(c, e));
+  });
+  loadThumbs(c);
   $('pantauRefresh').onclick = () => renderPantau(c, $('pantauTgl').value).catch(e => alertMsg(c, e));
   $('pantauTgl').onchange = () => renderPantau(c, $('pantauTgl').value).catch(e => alertMsg(c, e));
   $('pantauFilter').querySelectorAll('button').forEach(b => b.onclick = () => {
@@ -613,6 +645,31 @@ async function renderPantau(c, tanggal) {
     if ($('moduleView').classList.contains('hidden') || !$('pantauTgl')) { clearInterval(PANTAU_TIMER); PANTAU_TIMER = null; return; }
     renderPantau(c, d.tanggal).catch(() => {});
   }, 60000);
+}
+
+/* Foto kecil dimuat bertahap (8 per permintaan) dan disimpan sementara di memori. */
+const THUMBS = {};
+let THUMB_BUSY = false;
+async function loadThumbs(root) {
+  const pakai = () => root.querySelectorAll('img[data-fid]').forEach(img => {
+    const u = THUMBS[img.dataset.fid];
+    if (u && img.src !== u) img.src = u;
+    if (u === '') { img.alt = 'Foto tidak tersedia'; img.style.opacity = '.4'; }
+  });
+  pakai();
+  if (THUMB_BUSY) return;
+  THUMB_BUSY = true;
+  try {
+    while (true) {
+      const ids = [...new Set([...root.querySelectorAll('img[data-fid]')].map(i => i.dataset.fid))].filter(id => !(id in THUMBS));
+      if (!ids.length || !root.isConnected) break;
+      const batch = ids.slice(0, 8);
+      let res = {};
+      try { res = await call('getFotoThumbs', TOKEN, batch); } catch (e) { batch.forEach(id => THUMBS[id] = ''); }
+      batch.forEach(id => { THUMBS[id] = res[id] || ''; });
+      pakai();
+    }
+  } finally { THUMB_BUSY = false; }
 }
 
 function alertMsg(c, e) {
@@ -732,7 +789,7 @@ function renderCuti(c) {
   const today = (BOOTSTRAP?.now || new Date().toISOString()).slice(0, 10);
   const max = BOOTSTRAP?.config?.izinMaxPerHari || 3;
   c.innerHTML = `<div class="action-card"><h3>Pengajuan Cuti / Izin</h3>
-    <div class="badge">Kuota maksimal ${max} guru per hari • Surat PDF dibuat otomatis</div>
+    <div class="badge">Kuota maks. ${max} guru/hari (Sabtu <span id="cutiSabtu">8</span>) • Izin SAKIT tidak dihitung jatah bulanan • Surat PDF otomatis</div>
     <div id="cutiBulan" class="msg" style="display:none"></div>
     <label>Jenis</label>
     <select id="cutiJenis"><option value="IZIN">Izin</option><option value="SAKIT">Sakit</option><option value="CUTI">Cuti</option></select>
@@ -754,10 +811,13 @@ function renderCuti(c) {
     try {
       const q = await call('getLeaveQuota', TOKEN, a, $('cutiSelesai').value || a);
       $('cutiQuota').innerHTML = q.days.map(d =>
-        `<span class="${d.full ? 'full' : ''}">${d.date}: ${d.used}/${q.max}${d.full ? ' (penuh)' : ''}</span>`).join(' • ');
+        `<span class="${d.full ? 'full' : ''}">${d.date}: ${d.used}/${d.max || q.max}${d.full ? ' (penuh)' : ''}</span>`).join(' • ');
+      if (q.maxSabtu && $('cutiSabtu')) $('cutiSabtu').textContent = q.maxSabtu;
       if (q.bulan) {
         const b = q.bulan;
-        showMsg('cutiBulan', b.penuh
+        if ($('cutiJenis').value === 'SAKIT') {
+          showMsg('cutiBulan', `Izin SAKIT tidak dihitung dalam jatah ${b.max}x/bulan dan tidak dibatasi kuota harian. Wajib foto bukti (surat dokter/keterangan). Jatah izin/cuti Anda ${b.nama}: ${b.used}/${b.max}.`, true);
+        } else showMsg('cutiBulan', b.penuh
           ? `⚠ Pengajuan Anda untuk ${b.nama} sudah ${b.used}/${b.max}. Batas tercapai — pengajuan baru di bulan ini akan otomatis DITOLAK.`
           : `Pengajuan Anda untuk ${b.nama}: ${b.used}/${b.max} (sisa ${b.max - b.used}x).`, !b.penuh);
         $('cutiBulan').style.display = '';
@@ -765,6 +825,7 @@ function renderCuti(c) {
     } catch (e) { $('cutiQuota').textContent = e.message; }
   };
   $('cutiMulai').onchange = checkQuota;
+  $('cutiJenis').onchange = checkQuota;
   $('cutiSelesai').onchange = checkQuota;
   checkQuota();
   initCamera('cuti');
@@ -822,13 +883,63 @@ async function renderRiwayat(c) {
 
 /* ---------------- Persetujuan (Kepala Sekolah / Admin) ---------------- */
 
+function catatIzinHTML() {
+  const today = (BOOTSTRAP?.now || new Date().toISOString()).slice(0, 10);
+  return `<div class="action-card">
+    <button type="button" class="secondary" id="kpsToggle" style="width:100%">📝 Catat izin untuk guru (oleh Kepala Sekolah)</button>
+    <div id="kpsForm" class="hidden" style="margin-top:12px">
+      <p class="small">Untuk guru yang sakit/berhalangan dan tidak bisa mengajukan sendiri. Langsung <b>DISETUJUI</b>,
+        tidak terkena batas 2x/bulan maupun kuota harian, dan bisa untuk tanggal mundur s.d. 14 hari.</p>
+      <label>Guru</label><select id="kpsGuru"><option value="">Memuat...</option></select>
+      <label>Jenis</label>
+      <select id="kpsJenis"><option value="SAKIT">Sakit</option><option value="IZIN">Izin</option><option value="CUTI">Cuti</option></select>
+      <div class="row">
+        <div><label>Tanggal mulai</label><input type="date" id="kpsMulai" value="${today}"></div>
+        <div><label>Tanggal selesai</label><input type="date" id="kpsSelesai" value="${today}"></div>
+      </div>
+      <label>Keterangan</label><textarea id="kpsAlasan" rows="2" placeholder="Contoh: sakit demam, dikabari lewat WA"></textarea>
+      <label>Catatan untuk guru (opsional)</label><input id="kpsCatatan" placeholder="Contoh: semoga lekas sembuh">
+      <button class="primary" id="kpsSave" style="margin-top:12px">Catat & Setujui</button>
+      <div id="kpsMsg" class="msg"></div>
+    </div></div>`;
+}
+
+function bindCatatIzin(c) {
+  $('kpsToggle').onclick = async () => {
+    const f = $('kpsForm');
+    f.classList.toggle('hidden');
+    if (!f.classList.contains('hidden') && $('kpsGuru').options.length <= 1) {
+      try {
+        const gurus = await call('getDaftarGuru', TOKEN);
+        $('kpsGuru').innerHTML = '<option value="">— pilih guru —</option>' +
+          gurus.map(g => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`).join('');
+      } catch (e) { showMsg('kpsMsg', e.message); }
+    }
+  };
+  $('kpsMulai').onchange = () => { if ($('kpsSelesai').value < $('kpsMulai').value) $('kpsSelesai').value = $('kpsMulai').value; };
+  $('kpsSave').onclick = async () => {
+    const p = {idGuru: $('kpsGuru').value, jenis: $('kpsJenis').value, mulai: $('kpsMulai').value,
+      selesai: $('kpsSelesai').value, alasan: $('kpsAlasan').value.trim(), catatan: $('kpsCatatan').value.trim()};
+    if (!p.idGuru) return showMsg('kpsMsg', 'Pilih guru terlebih dahulu.');
+    if (p.alasan.length < 3) return showMsg('kpsMsg', 'Keterangan wajib diisi.');
+    setBusy($('kpsSave'), true);
+    try {
+      const r = await call('catatIzinOlehKepsek', TOKEN, p);
+      showMsg('kpsMsg', '✔ Tercatat & disetujui untuk ' + r.nama + '. ' + (r.peringatan || ''), true);
+      $('kpsAlasan').value = ''; $('kpsCatatan').value = '';
+    } catch (e) { showMsg('kpsMsg', e.message); }
+    setBusy($('kpsSave'), false);
+  };
+}
+
 async function renderPersetujuan(c) {
   const list = await call('getPendingApprovals', TOKEN);
   if (!list.length) {
-    c.innerHTML = '<div class="action-card"><h3>Persetujuan</h3><div class="empty">Tidak ada pengajuan yang menunggu. ✔</div></div>';
+    c.innerHTML = catatIzinHTML() + '<div class="action-card"><h3>Persetujuan</h3><div class="empty">Tidak ada pengajuan yang menunggu. ✔</div></div>';
+    bindCatatIzin(c);
     return;
   }
-  c.innerHTML = `<div class="action-card"><h3>Menunggu keputusan (${list.length})</h3>
+  c.innerHTML = catatIzinHTML() + `<div class="action-card"><h3>Menunggu keputusan (${list.length})</h3>
     ${list.map((p, i) => `<div class="appr-item" id="appr_${i}">
       <div class="top"><b>${escapeHtml(p.nama)}</b><span class="status DIAJUKAN">${p.type === 'CUTI' ? 'CUTI/IZIN' : 'INVAL'}</span></div>
       <div class="meta">${escapeHtml(p.judul)}</div>
@@ -847,6 +958,7 @@ async function renderPersetujuan(c) {
       <div class="msg" id="apprMsg_${i}"></div>
     </div>`).join('')}
   </div>`;
+  bindCatatIzin(c);
   c.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => {
     const i = Number(b.dataset.i), p = list[i], d = b.dataset.d;
     if (d === 'DITOLAK' && !confirm('Tolak pengajuan ' + p.nama + '?')) return;
