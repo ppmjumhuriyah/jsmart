@@ -214,7 +214,8 @@ const ENDPOINTS = [
   'saveTeachingAttendance','saveInval','savePiketAttendance','saveGenericActivity',
   'getMyHistory','getLeaveQuota','saveLeaveRequest',
   'getPendingApprovals','decideApproval','getBuktiFile','ping',
-  'getKehadiranKerja','saveKehadiranKerja','getPantauKelas','getFotoThumbs','getDaftarGuru','catatIzinOlehKepsek'
+  'getKehadiranKerja','saveKehadiranKerja','getPantauKelas','getFotoThumbs','getDaftarGuru','catatIzinOlehKepsek',
+  'saveLaporanTugas','getLaporanTugas','getPresensiHariIni','savePresensi','getRekapPresensi'
 ];
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbz0BjmETNee-aaJoWctoUhUHWEuhqm1z8vV-y6DuyE-7sAI3YakoSWUYaLMGjceghVE_Q/exec';
@@ -271,6 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('loginForm').addEventListener('submit', onLogin);
   $('logoutBtn').addEventListener('click', onLogout);
   $('backBtn').addEventListener('click', goHome);
+  tambahMenuV24();
   document.querySelectorAll('[data-module]').forEach(b => b.addEventListener('click', () => openModule(b.dataset.module)));
   const splashStart = Date.now();
   const hideSplash = () => {
@@ -419,7 +421,7 @@ function openModule(name) {
     mengajar: 'Absen Mengajar', inval: 'INVAL / Guru Pengganti', piket: 'Guru Piket',
     apel: 'Apel Pagi', ibadah: 'Kehadiran Ibadah', kegiatanPagi: 'Kegiatan Pagi',
     bimbingan: 'Program Bimbingan', cuti: 'Cuti / Izin', riwayat: 'Riwayat Saya', persetujuan: 'Persetujuan Cuti / Izin',
-    kerja: 'Kehadiran Kerja', pantau: 'Pantau Kelas'
+    kerja: 'Kehadiran Kerja', pantau: 'Pantau Kelas', presensi: 'Jam Datang & Pulang', tugas: 'Tugas Tambahan'
   };
   $('moduleTitle').textContent = titles[name] || 'Aktivitas';
   const c = $('moduleContent');
@@ -427,7 +429,7 @@ function openModule(name) {
   const renderers = {
     mengajar: renderMengajar, inval: renderInval, piket: renderPiket, apel: renderApel,
     ibadah: renderIbadah, kegiatanPagi: renderKegiatanPagi, bimbingan: renderBimbingan,
-    cuti: renderCuti, riwayat: renderRiwayat, persetujuan: renderPersetujuan, kerja: renderKerja, pantau: renderPantau
+    cuti: renderCuti, riwayat: renderRiwayat, persetujuan: renderPersetujuan, kerja: renderKerja, pantau: renderPantau, presensi: renderPresensi, tugas: renderTugas
   };
   Promise.resolve((renderers[name] || (() => {}))(c)).catch(e => {
     c.innerHTML = '<div class="action-card"><div class="msg">' + escapeHtml(e.message) + '</div></div>';
@@ -781,6 +783,186 @@ function activitiesOf(kategori, fallback) {
     .filter(a => String(a.KATEGORI).toUpperCase() === kategori)
     .map(a => String(a.NAMA_AKTIVITAS));
   return list.length ? list : fallback;
+}
+
+/* ---------------- v2.4: menu baru ---------------- */
+
+function tambahMenuV24() {
+  const grid = document.querySelector('.menu-grid');
+  if (!grid || $('menuPresensi')) return;
+  const ref = grid.querySelector('[data-module="mengajar"]');
+  const mk = (html) => { const t = document.createElement('div'); t.innerHTML = html.trim(); return t.firstChild; };
+  grid.insertBefore(mk('<button data-module="presensi" id="menuPresensi" class="menu-card"><span>🕘</span><b>Jam Datang &amp; Pulang</b><small>Presensi harian</small></button>'), ref);
+  grid.insertBefore(mk('<button data-module="tugas" id="menuTugas" class="menu-card"><span>🧭</span><b>Tugas Tambahan</b><small>Laporan kinerja</small></button>'), ref);
+}
+
+/* ---------------- Jam Datang & Pulang ---------------- */
+
+async function renderPresensi(c) {
+  const st = await call('getPresensiHariIni', TOKEN);
+  const next = !st.datang ? 'DATANG' : (!st.pulang ? 'PULANG' : '');
+  const kotak = (judul, jam, status, extra) => `<div style="flex:1;padding:12px;border-radius:14px;text-align:center;
+      background:${jam ? '#e8f3ee' : '#f4f4f4'}">
+      <div class="small">${judul}</div>
+      <div style="font-size:24px;font-weight:800;color:${jam ? 'var(--green)' : '#999'}">${jam ? escapeHtml(jam) : '--:--'}</div>
+      ${status ? `<div class="small" style="font-weight:800;color:${/TERLAMBAT|AWAL/.test(status) ? '#c0392b' : 'var(--green)'}">${escapeHtml(status)}</div>` : ''}
+      ${extra ? `<div class="small">${escapeHtml(extra)}</div>` : ''}</div>`;
+  const aturan = [st.batasDatang ? 'Batas datang ' + st.batasDatang : '', st.minPulang ? 'Pulang mulai ' + st.minPulang : ''].filter(Boolean).join(' • ');
+  c.innerHTML = `<div class="action-card"><h3>Presensi Hari Ini</h3>
+    <div class="badge">${escapeHtml(st.tanggal)} • waktu server${aturan ? ' • ' + escapeHtml(aturan) : ''}</div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      ${kotak('Jam Datang', st.datang, st.statusDatang)}
+      ${kotak('Jam Pulang', st.pulang, st.statusPulang, st.durasi ? 'Durasi ' + st.durasi : '')}
+    </div>
+    ${next ? `${cameraHTML('prs')}
+      <button class="primary" id="savePrs">${next === 'DATANG' ? '🟢 Absen Datang' : '🔴 Absen Pulang'}</button>
+      <div id="prsMsg" class="msg"></div>`
+    : '<div class="msg ok" style="margin-top:12px">✔ Jam datang dan pulang hari ini sudah tercatat. Terima kasih!</div>'}
+  </div>
+  ${st.isApprover ? `<div class="action-card"><h3>Rekap Guru</h3>
+    <div class="row" style="align-items:end">
+      <div><label>Tanggal</label><input type="date" id="rkpTgl" value="${st.tanggal}"></div>
+      <div><button type="button" class="secondary" id="rkpLoad" style="width:100%">Tampilkan</button></div>
+    </div><div id="rkpBox" style="margin-top:10px"></div></div>` : ''}`;
+  if (next) {
+    initCamera('prs');
+    bindSave('prs', 'savePrs', 'prsMsg', 'savePresensi', imageData => ({jenis: next, imageData}));
+    const btn = $('savePrs'), original = btn.onclick;
+    btn.onclick = async () => {
+      const r = await original();
+      if (r && r.success) setTimeout(() => renderPresensi(c).catch(() => {}), 1500);
+    };
+  }
+  if (st.isApprover) {
+    const muat = async () => {
+      $('rkpBox').innerHTML = '<div class="small">Memuat...</div>';
+      try {
+        const d = await call('getRekapPresensi', TOKEN, $('rkpTgl').value);
+        const s = d.ringkasan;
+        $('rkpBox').innerHTML = `<div class="badge">${s.datang}/${s.guru} datang • ${s.pulang} pulang • ${s.terlambat} terlambat • ${s.izin} izin • ${s.belum} belum</div>
+          <div class="filter-row" id="rkpFilter">
+            <button type="button" data-f="semua" class="on">Semua</button><button type="button" data-f="belum">Belum datang</button>
+            <button type="button" data-f="telat">Terlambat</button><button type="button" data-f="izin">Izin</button></div>
+          <div id="rkpList"></div>`;
+        const tampil = f => {
+          const list = d.daftar.filter(x => f === 'semua' || (f === 'belum' && !x.datang && !x.izin) ||
+            (f === 'telat' && x.statusDatang === 'TERLAMBAT') || (f === 'izin' && x.izin));
+          $('rkpList').innerHTML = list.length ? list.map(x => `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 2px;border-bottom:1px solid #eef1ef;font-size:12px">
+            <div><b>${escapeHtml(String(x.nama).split(',')[0])}</b>${x.izin ? ` <span class="status DIAJUKAN">${escapeHtml(x.izin)}</span>` : ''}
+              ${x.statusDatang === 'TERLAMBAT' ? ' <span style="color:#c0392b;font-weight:800">Terlambat</span>' : ''}
+              ${x.statusPulang === 'PULANG AWAL' ? ' <span style="color:#c0392b;font-weight:800">Pulang awal</span>' : ''}</div>
+            <div style="white-space:nowrap;text-align:right">
+              ${x.datang ? `<a href="#" data-file="${escapeHtml(x.fotoDatangId)}">🟢 ${escapeHtml(x.datang)}</a>` : '<span style="color:#c0392b">🟢 --:--</span>'}
+              &nbsp;${x.pulang ? `<a href="#" data-file="${escapeHtml(x.fotoPulangId)}">🔴 ${escapeHtml(x.pulang)}</a>` : '<span style="color:#999">🔴 --:--</span>'}</div></div>`).join('')
+            : '<div class="empty">Tidak ada data.</div>';
+        };
+        $('rkpFilter').querySelectorAll('button').forEach(b => b.onclick = () => {
+          $('rkpFilter').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); tampil(b.dataset.f);
+        });
+        tampil('semua');
+      } catch (e) { $('rkpBox').innerHTML = '<div class="msg">' + escapeHtml(e.message) + '</div>'; }
+    };
+    $('rkpLoad').onclick = muat;
+    muat();
+  }
+}
+
+/* ---------------- Tugas Tambahan ---------------- */
+
+const TUGAS_INFO = {
+  'Wali Kelas': 'Contoh: membimbing santri kelas, cek kehadiran & kerapian, komunikasi wali santri.',
+  'Pengasuhan Keamanan': 'Contoh: patroli asrama, pengecekan perizinan keluar, penanganan pelanggaran.',
+  'Pengasuhan Bahasa': 'Contoh: muhadatsah pagi, pemberian kosakata, penegakan disiplin bahasa.',
+  'Pengasuhan Kesehatan': 'Contoh: pemeriksaan santri sakit, pemberian obat, rujukan ke klinik.',
+  'Pengasuhan Kebersihan': 'Contoh: kontrol piket kebersihan kamar, kelas, dan lingkungan.',
+  'Wk. Kurikulum': 'Contoh: penyusunan jadwal, supervisi kelas, administrasi penilaian.',
+  'Operator': 'Contoh: input data Dapodik/EMIS, pengelolaan data santri & guru.'
+};
+
+async function renderTugas(c) {
+  const daftar = Object.keys(TUGAS_INFO);
+  const peta = PROFILE?.rombel || {};
+  const rombel = Object.keys(peta).sort().reduce((a, t) => a.concat(peta[t]), []);
+  c.innerHTML = `${PROFILE?.isApprover ? `<div class="filter-row" id="tgsTab">
+      <button type="button" data-t="lapor" class="on">✍️ Buat laporan</button><button type="button" data-t="semua">📋 Laporan semua guru</button></div>` : ''}
+    <div id="tgsLapor"><div class="action-card"><h3>Laporan Tugas Tambahan</h3>
+      <label>Tugas tambahan</label>
+      <select id="tgsJenis">${daftar.map(t => `<option>${escapeHtml(t)}</option>`).join('')}</select>
+      <div id="tgsInfo" class="small" style="margin-top:6px"></div>
+      <div id="tgsKelasWrap"><label>Kelas perwalian</label>
+        <select id="tgsKelas"><option value="">— pilih kelas —</option>${rombel.map(r => `<option>${escapeHtml(r)}</option>`).join('')}</select></div>
+      <label>Uraian kegiatan yang dilakukan</label>
+      <textarea id="tgsUraian" rows="3" placeholder="Tuliskan apa yang Anda kerjakan hari ini"></textarea>
+      <label>Hasil / tindak lanjut (opsional)</label>
+      <textarea id="tgsHasil" rows="2" placeholder="Contoh: 3 santri dipanggil, sudah dilaporkan ke pengasuhan"></textarea>
+      ${cameraHTML('tgs')}
+      <button class="primary" id="saveTgs">Kirim Laporan</button><div id="tgsMsg" class="msg"></div>
+    </div>
+    <div class="action-card"><h3>Laporan saya</h3><div id="tgsMine"><div class="small">Memuat...</div></div></div></div>
+    <div id="tgsSemua" class="hidden"></div>`;
+  const ubah = () => {
+    const j = $('tgsJenis').value;
+    $('tgsInfo').textContent = TUGAS_INFO[j] || '';
+    $('tgsKelasWrap').style.display = j === 'Wali Kelas' ? '' : 'none';
+  };
+  $('tgsJenis').onchange = ubah; ubah();
+  initCamera('tgs');
+  bindSave('tgs', 'saveTgs', 'tgsMsg', 'saveLaporanTugas', imageData => {
+    const tugas = $('tgsJenis').value, kelas = $('tgsKelas').value, uraian = $('tgsUraian').value.trim();
+    if (tugas === 'Wali Kelas' && !kelas) throw new Error('Pilih kelas perwalian.');
+    if (uraian.length < 10) throw new Error('Uraian kegiatan minimal 10 huruf.');
+    return {tugas, kelas: tugas === 'Wali Kelas' ? kelas : '', uraian, hasil: $('tgsHasil').value.trim(), imageData};
+  });
+  const btn = $('saveTgs'), original = btn.onclick;
+  btn.onclick = async () => {
+    const r = await original();
+    if (r && r.success) { $('tgsUraian').value = ''; $('tgsHasil').value = ''; muatSaya(); }
+  };
+  const kartu = (x, thumb) => `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #eef1ef">
+      ${thumb && x.fotoId ? `<div style="width:72px;flex:none"><img alt="" data-fid="${escapeHtml(x.fotoId)}" data-file="${escapeHtml(x.fotoId)}"
+        style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;background:#e9eeeb;cursor:pointer"></div>` : ''}
+      <div style="flex:1;font-size:12px">
+        <b>${escapeHtml(x.tugas)}${x.kelas ? ' — ' + escapeHtml(x.kelas) : ''}</b>
+        ${thumb ? `<br><b style="color:var(--green)">${escapeHtml(String(x.nama).split(',')[0])}</b>` : ''}
+        <span style="color:#777"> • ${escapeHtml(x.waktu)}</span>
+        <div style="margin-top:4px;white-space:pre-wrap">${escapeHtml(x.uraian)}</div>
+        ${x.hasil ? `<div style="margin-top:4px;color:#555"><b>Hasil:</b> ${escapeHtml(x.hasil)}</div>` : ''}
+        ${!thumb && x.fotoId ? `<a href="#" data-file="${escapeHtml(x.fotoId)}" class="small">📷 Lihat foto</a>` : ''}
+      </div></div>`;
+  const muatSaya = async () => {
+    try {
+      const d = await call('getLaporanTugas', TOKEN, {});
+      $('tgsMine').innerHTML = d.items.length ? d.items.slice(0, 20).map(x => kartu(x, false)).join('') : '<div class="empty">Belum ada laporan.</div>';
+    } catch (e) { $('tgsMine').innerHTML = '<div class="msg">' + escapeHtml(e.message) + '</div>'; }
+  };
+  muatSaya();
+  if (!PROFILE?.isApprover) return;
+  const muatSemua = async (tgl, tugas) => {
+    const box = $('tgsSemua');
+    box.innerHTML = '<div class="action-card"><div class="small">Memuat...</div></div>';
+    try {
+      const d = await call('getLaporanTugas', TOKEN, {semua: true, tanggal: tgl || '', tugas: tugas || ''});
+      box.innerHTML = `<div class="action-card">
+        <div class="row" style="align-items:end">
+          <div><label>Tanggal</label><input type="date" id="tgsTgl" value="${d.tanggal}"></div>
+          <div><label>Tugas</label><select id="tgsFilter"><option value="">Semua tugas</option>
+            ${d.daftarTugas.map(t => `<option ${t === tugas ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select></div>
+        </div>
+        <div class="badge" style="margin-top:10px">${d.items.length} laporan • ${d.daftarTugas.map(t => `${escapeHtml(t)}: ${d.perTugas[t]}`).join(' • ')}</div>
+        <div style="margin-top:6px">${d.items.length ? d.items.map(x => kartu(x, true)).join('') : '<div class="empty">Belum ada laporan pada tanggal ini.</div>'}</div>
+      </div>`;
+      $('tgsTgl').onchange = () => muatSemua($('tgsTgl').value, $('tgsFilter').value);
+      $('tgsFilter').onchange = () => muatSemua($('tgsTgl').value, $('tgsFilter').value);
+      loadThumbs(box);
+    } catch (e) { box.innerHTML = '<div class="action-card"><div class="msg">' + escapeHtml(e.message) + '</div></div>'; }
+  };
+  $('tgsTab').querySelectorAll('button').forEach(b => b.onclick = () => {
+    $('tgsTab').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    const semua = b.dataset.t === 'semua';
+    $('tgsLapor').classList.toggle('hidden', semua);
+    $('tgsSemua').classList.toggle('hidden', !semua);
+    if (semua && !$('tgsTgl')) muatSemua();
+  });
 }
 
 /* ---------------- Cuti / Izin ---------------- */
